@@ -1,0 +1,5 @@
+deb http://mirrors.ustc.edu.cn/ubuntu-ports resolute main universe multiverse restricted
+deb http://mirrors.ustc.edu.cn/ubuntu-ports resolute-updates main universe multiverse restricted
+deb http://mirrors.ustc.edu.cn/ubuntu-ports resolute-security main universe multiverse restricted
+deb http://mirrors.ustc.edu.cn/ubuntu-ports resolute-proposed main universe multiverse restricted
+deb http://mirrors.ustc.edu.cn/ubuntu-ports resolute-backports main universe multiverse restricted

@@ -1,0 +1,10 @@
+/rootfs/*.xz
+/rootfs/rootfs-*
+/rootfs/*.img.gz
+/archives
+/u-boot
+/kernel
+/deploy
+/kernel-*
+/tmp
+/linux-rockchip

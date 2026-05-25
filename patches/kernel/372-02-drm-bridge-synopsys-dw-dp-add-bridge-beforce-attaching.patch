@@ -1,0 +1,28 @@
+From b726970486d81ed3eea09cf9f80f39fe1928a741 Mon Sep 17 00:00:00 2001
+From: Luca Ceresoli <luca.ceresoli@bootlin.com>
+Date: Tue, 28 Oct 2025 11:15:47 +0100
+Subject: [PATCH] drm/bridge: synopsys: dw-dp: add bridge before attaching
+
+DRM bridges should be always added to the global bridge list before being
+attached.
+
+Reviewed-by: Raphael Gallais-Pou <rgallaispou@gmail.com>
+Link: https://patch.msgid.link/20251028-b4-drm-bridge-alloc-add-before-attach-v3-6-bb8611acbbfb@bootlin.com
+Signed-off-by: Luca Ceresoli <luca.ceresoli@bootlin.com>
+---
+ drivers/gpu/drm/bridge/synopsys/dw-dp.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/drivers/gpu/drm/bridge/synopsys/dw-dp.c b/drivers/gpu/drm/bridge/synopsys/dw-dp.c
+index 9bbfe8da3de026..82aaf74e1bc070 100644
+--- a/drivers/gpu/drm/bridge/synopsys/dw-dp.c
++++ b/drivers/gpu/drm/bridge/synopsys/dw-dp.c
+@@ -2049,6 +2049,8 @@ struct dw_dp *dw_dp_bind(struct device *dev, struct drm_encoder *encoder,
+ 	bridge->type = DRM_MODE_CONNECTOR_DisplayPort;
+ 	bridge->ycbcr_420_allowed = true;
+ 
++	devm_drm_bridge_add(dev, bridge);
++
+ 	dp->aux.dev = dev;
+ 	dp->aux.drm_dev = encoder->dev;
+ 	dp->aux.name = dev_name(dev);

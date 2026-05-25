@@ -1,0 +1,36 @@
+
+Signed-off-by: Andy Yan <andy.yan@rock-chips.com>
+Reviewed-by: Sebastian Reichel <sebastian.reichel@collabora.com>
+Tested-by: Sebastian Reichel <sebastian.reichel@collabora.com>
+---
+
+(no changes since v1)
+
+ drivers/gpu/drm/rockchip/dw_dp-rockchip.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/drivers/gpu/drm/rockchip/dw_dp-rockchip.c b/drivers/gpu/drm/rockchip/dw_dp-rockchip.c
+index 89d614d53596..dac3d202971e 100644
+--- a/drivers/gpu/drm/rockchip/dw_dp-rockchip.c
++++ b/drivers/gpu/drm/rockchip/dw_dp-rockchip.c
+@@ -142,10 +142,18 @@ static const struct dw_dp_plat_data rk3588_dp_plat_data = {
+ 	.pixel_mode = DW_DP_MP_QUAD_PIXEL,
+ };
+ 
++static const struct dw_dp_plat_data rk3576_dp_plat_data = {
++	.max_link_rate = 810000,
++	.pixel_mode = DW_DP_MP_DUAL_PIXEL,
++};
++
+ static const struct of_device_id dw_dp_of_match[] = {
+ 	{
+ 		.compatible = "rockchip,rk3588-dp",
+ 		.data = &rk3588_dp_plat_data,
++	}, {
++		.compatible = "rockchip,rk3576-dp",
++		.data = &rk3576_dp_plat_data,
+ 	},
+ 	{}
+ };
+-- 
+2.43.0

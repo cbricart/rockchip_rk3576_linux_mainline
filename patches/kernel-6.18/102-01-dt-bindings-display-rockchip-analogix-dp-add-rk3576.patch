@@ -1,0 +1,39 @@
+
+Signed-off-by: Damon Ding <damon.ding@rock-chips.com>
+---
+ .../bindings/display/rockchip/rockchip,analogix-dp.yaml     | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/Documentation/devicetree/bindings/display/rockchip/rockchip,analogix-dp.yaml b/Documentation/devicetree/bindings/display/rockchip/rockchip,analogix-dp.yaml
+index d99b23b88cc5..4496a43881f9 100644
+--- a/Documentation/devicetree/bindings/display/rockchip/rockchip,analogix-dp.yaml
++++ b/Documentation/devicetree/bindings/display/rockchip/rockchip,analogix-dp.yaml
+@@ -15,6 +15,7 @@ properties:
+     enum:
+       - rockchip,rk3288-dp
+       - rockchip,rk3399-edp
++      - rockchip,rk3576-edp
+       - rockchip,rk3588-edp
+ 
+   clocks:
+@@ -26,7 +27,9 @@ properties:
+     items:
+       - const: dp
+       - const: pclk
+-      - const: grf
++      - enum:
++          - grf
++          - hclk
+ 
+   power-domains:
+     maxItems: 1
+@@ -65,6 +68,7 @@ allOf:
+         compatible:
+           contains:
+             enum:
++              - rockchip,rk3576-edp
+               - rockchip,rk3588-edp
+     then:
+       properties:
+-- 
+2.34.1

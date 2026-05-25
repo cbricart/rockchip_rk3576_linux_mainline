@@ -1,0 +1,43 @@
+--- a/drivers/gpu/drm/bridge/synopsys/dw-dp.c
++++ b/drivers/gpu/drm/bridge/synopsys/dw-dp.c
+@@ -1643,11 +1643,12 @@
+ }
+ 
+ static void dw_dp_bridge_atomic_enable(struct drm_bridge *bridge,
+-				       struct drm_atomic_state *state)
++				       struct drm_bridge_state *old_state)
+ {
+ 	struct dw_dp *dp = bridge_to_dp(bridge);
+ 	struct drm_connector *connector;
+ 	struct drm_connector_state *conn_state;
++	struct drm_atomic_state *state = old_state->base.state;
+ 	int ret;
+ 
+ 	connector = drm_atomic_get_new_connector_for_encoder(state, bridge->encoder);
+@@ -1696,7 +1697,7 @@
+ }
+ 
+ static void dw_dp_bridge_atomic_disable(struct drm_bridge *bridge,
+-					struct drm_atomic_state *state)
++					struct drm_bridge_state *old_state)
+ {
+ 	struct dw_dp *dp = bridge_to_dp(bridge);
+ 
+@@ -1719,15 +1720,14 @@
+ 	return !ret;
+ }
+ 
+-static enum drm_connector_status dw_dp_bridge_detect(struct drm_bridge *bridge,
+-						     struct drm_connector *connector)
++static enum drm_connector_status dw_dp_bridge_detect(struct drm_bridge *bridge)
+ {
+ 	struct dw_dp *dp = bridge_to_dp(bridge);
+ 
+ 	if (!dw_dp_hpd_detect(dp))
+ 		return connector_status_disconnected;
+ 
+-	if (!dw_dp_hpd_detect_link(dp, connector))
++	if (!dw_dp_hpd_detect_link(dp, NULL))
+ 		return connector_status_disconnected;
+ 
+ 	return connector_status_connected;

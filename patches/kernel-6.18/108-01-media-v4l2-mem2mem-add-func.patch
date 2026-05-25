@@ -1,0 +1,90 @@
+Signed-off-by: Detlev Casanova <detlev.casanova@collabora.com>
+---
+ drivers/media/v4l2-core/v4l2-mem2mem.c | 27 ++++++++++++++++++++++-----
+ include/media/v4l2-mem2mem.h           | 20 ++++++++++++++++++++
+ 2 files changed, 42 insertions(+), 5 deletions(-)
+
+diff --git a/drivers/media/v4l2-core/v4l2-mem2mem.c b/drivers/media/v4l2-core/v4l2-mem2mem.c
+index a65cbb124cfe..7f9fad4f6807 100644
+--- a/drivers/media/v4l2-core/v4l2-mem2mem.c
++++ b/drivers/media/v4l2-core/v4l2-mem2mem.c
+@@ -503,9 +503,9 @@ void v4l2_m2m_job_finish(struct v4l2_m2m_dev *m2m_dev,
+ }
+ EXPORT_SYMBOL(v4l2_m2m_job_finish);
+ 
+-void v4l2_m2m_buf_done_and_job_finish(struct v4l2_m2m_dev *m2m_dev,
+-				      struct v4l2_m2m_ctx *m2m_ctx,
+-				      enum vb2_buffer_state state)
++static void _buf_done_and_job_finish(struct v4l2_m2m_dev *m2m_dev,
++				     struct v4l2_m2m_ctx *m2m_ctx,
++				     enum vb2_buffer_state state, bool finish)
+ {
+ 	struct vb2_v4l2_buffer *src_buf, *dst_buf;
+ 	bool schedule_next = false;
+@@ -532,13 +532,30 @@ void v4l2_m2m_buf_done_and_job_finish(struct v4l2_m2m_dev *m2m_dev,
+ 	 * before the CAPTURE buffer is done.
+ 	 */
+ 	v4l2_m2m_buf_done(src_buf, state);
+-	schedule_next = _v4l2_m2m_job_finish(m2m_dev, m2m_ctx);
++	if (finish)
++		schedule_next = _v4l2_m2m_job_finish(m2m_dev, m2m_ctx);
+ unlock:
+ 	spin_unlock_irqrestore(&m2m_dev->job_spinlock, flags);
+ 
+-	if (schedule_next)
++	if (schedule_next || !finish)
+ 		v4l2_m2m_schedule_next_job(m2m_dev, m2m_ctx);
+ }
++
++
++void v4l2_m2m_buf_done_manual(struct v4l2_m2m_dev *m2m_dev,
++			      struct v4l2_m2m_ctx *m2m_ctx,
++			      enum vb2_buffer_state state)
++{
++	_buf_done_and_job_finish(m2m_dev, m2m_ctx, state, false);
++}
++EXPORT_SYMBOL(v4l2_m2m_buf_done_manual);
++
++void v4l2_m2m_buf_done_and_job_finish(struct v4l2_m2m_dev *m2m_dev,
++				      struct v4l2_m2m_ctx *m2m_ctx,
++				      enum vb2_buffer_state state)
++{
++	_buf_done_and_job_finish(m2m_dev, m2m_ctx, state, true);
++}
+ EXPORT_SYMBOL(v4l2_m2m_buf_done_and_job_finish);
+ 
+ void v4l2_m2m_suspend(struct v4l2_m2m_dev *m2m_dev)
+diff --git a/include/media/v4l2-mem2mem.h b/include/media/v4l2-mem2mem.h
+index 31de25d792b9..6a36fc885f5f 100644
+--- a/include/media/v4l2-mem2mem.h
++++ b/include/media/v4l2-mem2mem.h
+@@ -227,6 +227,26 @@ void v4l2_m2m_buf_done_and_job_finish(struct v4l2_m2m_dev *m2m_dev,
+ 				      struct v4l2_m2m_ctx *m2m_ctx,
+ 				      enum vb2_buffer_state state);
+ 
++/**
++ * v4l2_m2m_buf_done_manual() - manually mark the job as done, but do not
++ * finish it.
++ *
++ * @m2m_dev: opaque pointer to the internal data to handle M2M context
++ * @m2m_ctx: m2m context assigned to the instance given by struct &v4l2_m2m_ctx
++ * @state: vb2 buffer state passed to v4l2_m2m_buf_done().
++ *
++ * The function works the same way as v4l2_m2m_buf_done_and_job_finish()
++ * but does not inform the framework that the job has been finished,
++ * leaving the user the responsability to call v4l2_m2m_job_finish()
++ * when a buffer can be released to userspace.
++ *
++ * It allows driver to process new buffers, before the previous one is
++ * done.
++ */
++void v4l2_m2m_buf_done_manual(struct v4l2_m2m_dev *m2m_dev,
++			      struct v4l2_m2m_ctx *m2m_ctx,
++			      enum vb2_buffer_state state);
++
+ static inline void
+ v4l2_m2m_buf_done(struct vb2_v4l2_buffer *buf, enum vb2_buffer_state state)
+ {
+
+-- 
+2.53.0

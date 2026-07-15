@@ -1,6 +1,7 @@
 /rootfs/*.xz
 /rootfs/rootfs-*
 /rootfs/*.img.gz
+/rootfs/*.img
 /archives
 /u-boot
 /kernel

@@ -1,36 +1,49 @@
+Subject: [PATCH v5 4/6] counter: Add rockchip-pwm-capture driver
+Date: Mon, 20 Apr 2026 15:52:41 +0200	[thread overview]
+Message-ID: <20260420-rk3576-pwm-v5-4-ae7cfbbe5427@collabora.com> (raw)
+In-Reply-To: <20260420-rk3576-pwm-v5-0-ae7cfbbe5427@collabora.com>
+
+Among many other things, Rockchip's new PWMv4 IP in the RK3576 supports
+PWM capture functionality.
+
+Add a basic driver for this that works to expose HPC/LPC counts and
+state change events to userspace through the counter framework. It's
+quite basic, but works well enough to demonstrate the device function
+exclusion stuff that mfpwm does, in order to eventually support all the
+functions of this device in drivers within their appropriate subsystems,
+without them interfering with each other.
+
 Signed-off-by: Nicolas Frattaroli <nicolas.frattaroli@collabora.com>
 ---
  MAINTAINERS                            |   1 +
- drivers/counter/Kconfig                |  13 ++
+ drivers/counter/Kconfig                |  11 ++
  drivers/counter/Makefile               |   1 +
- drivers/counter/rockchip-pwm-capture.c | 306 +++++++++++++++++++++++++++++++++
- 4 files changed, 321 insertions(+)
+ drivers/counter/rockchip-pwm-capture.c | 307 +++++++++++++++++++++++++++++++++
+ 4 files changed, 320 insertions(+)
 
 diff --git a/MAINTAINERS b/MAINTAINERS
-index 2079c2d51d5c..17d625ef76d1 100644
+index 68bb9ee07a47..3f72784dd5bc 100644
 --- a/MAINTAINERS
 +++ b/MAINTAINERS
-@@ -22372,6 +22372,7 @@ L:	linux-rockchip@lists.infradead.org
+@@ -23178,6 +23178,7 @@ L:	linux-rockchip@lists.infradead.org
  L:	linux-pwm@vger.kernel.org
  S:	Maintained
  F:	Documentation/devicetree/bindings/pwm/rockchip,rk3576-pwm.yaml
 +F:	drivers/counter/rockchip-pwm-capture.c
+ F:	drivers/mfd/rockchip-mfpwm.c
  F:	drivers/pwm/pwm-rockchip-v4.c
- F:	drivers/soc/rockchip/mfpwm.c
- F:	include/soc/rockchip/mfpwm.h
+ F:	include/linux/mfd/rockchip-mfpwm.h
 diff --git a/drivers/counter/Kconfig b/drivers/counter/Kconfig
-index d30d22dfe577..12e823dd0ec7 100644
+index d30d22dfe577..85adeb41aeed 100644
 --- a/drivers/counter/Kconfig
 +++ b/drivers/counter/Kconfig
-@@ -90,6 +90,19 @@ config MICROCHIP_TCB_CAPTURE
+@@ -90,6 +90,17 @@ config MICROCHIP_TCB_CAPTURE
  	  To compile this driver as a module, choose M here: the
  	  module will be called microchip-tcb-capture.
  
 +config ROCKCHIP_PWM_CAPTURE
 +	tristate "Rockchip PWM Counter Capture driver"
-+	depends on ARCH_ROCKCHIP || COMPILE_TEST
 +	depends on MFD_ROCKCHIP_MFPWM
-+	depends on HAS_IOMEM
 +	help
 +	  Generic counter framework driver for the multi-function PWM on
 +	  Rockchip SoCs such as the RK3576.
@@ -53,10 +66,10 @@ index fa3c1d08f706..2bfcfc2c584b 100644
 +obj-$(CONFIG_ROCKCHIP_PWM_CAPTURE)	+= rockchip-pwm-capture.o
 diff --git a/drivers/counter/rockchip-pwm-capture.c b/drivers/counter/rockchip-pwm-capture.c
 new file mode 100644
-index 000000000000..63e1286303f9
+index 000000000000..09a92f2bc409
 --- /dev/null
 +++ b/drivers/counter/rockchip-pwm-capture.c
-@@ -0,0 +1,306 @@
+@@ -0,0 +1,307 @@
 +// SPDX-License-Identifier: GPL-2.0-or-later
 +/*
 + * Copyright (c) 2025 Collabora Ltd.
@@ -86,31 +99,18 @@ index 000000000000..63e1286303f9
 +struct rockchip_pwm_capture {
 +	struct rockchip_mfpwm_func *pwmf;
 +	struct counter_device *counter;
-+	bool is_enabled;
-+	spinlock_t enable_lock;
 +};
 +
-+/*
-+ * Channel 0 receives a state changed notification whenever the LPC interrupt
-+ * fires.
-+ *
-+ * Channel 1 receives a state changed notification whenever the HPC interrupt
-+ * fires.
-+ */
 +static struct counter_signal rkpwmc_signals[] = {
 +	{
 +		.id = 0,
-+		.name = "Channel 0"
-+	},
-+	{
-+		.id = 1,
-+		.name = "Channel 1"
++		.name = "PWM Clock"
 +	},
 +};
 +
 +static const enum counter_synapse_action rkpwmc_hpc_lpc_actions[] = {
 +	COUNTER_SYNAPSE_ACTION_BOTH_EDGES,
-+
++	COUNTER_SYNAPSE_ACTION_NONE,
 +};
 +
 +static struct counter_synapse rkpwmc_pwm_synapses[] = {
@@ -119,16 +119,32 @@ index 000000000000..63e1286303f9
 +		.num_actions = ARRAY_SIZE(rkpwmc_hpc_lpc_actions),
 +		.signal = &rkpwmc_signals[0]
 +	},
-+	{
-+		.actions_list = rkpwmc_hpc_lpc_actions,
-+		.num_actions = ARRAY_SIZE(rkpwmc_hpc_lpc_actions),
-+		.signal = &rkpwmc_signals[1]
-+	},
 +};
 +
 +static const enum counter_function rkpwmc_functions[] = {
 +	COUNTER_FUNCTION_INCREASE,
 +};
++
++static inline bool rkpwmc_is_enabled(struct rockchip_mfpwm_func *pwmf)
++{
++	return mfpwm_get_mode(pwmf) == PWMV4_MODE_CAPTURE;
++}
++
++static bool rkpwmc_acquire_if_enabled(struct rockchip_pwm_capture *pc)
++{
++	int ret;
++
++	ret = mfpwm_acquire(pc->pwmf);
++	if (ret < 0)
++		return false;
++
++	if (rkpwmc_is_enabled(pc->pwmf))
++		return true;
++
++	mfpwm_release(pc->pwmf);
++
++	return false;
++}
 +
 +static int rkpwmc_enable_read(struct counter_device *counter,
 +			       struct counter_count *count,
@@ -136,9 +152,7 @@ index 000000000000..63e1286303f9
 +{
 +	struct rockchip_pwm_capture *pc = counter_priv(counter);
 +
-+	guard(spinlock)(&pc->enable_lock);
-+
-+	*enable = pc->is_enabled;
++	*enable = rkpwmc_is_enabled(pc->pwmf);
 +
 +	return 0;
 +}
@@ -150,13 +164,11 @@ index 000000000000..63e1286303f9
 +	struct rockchip_pwm_capture *pc = counter_priv(counter);
 +	int ret;
 +
-+	guard(spinlock)(&pc->enable_lock);
++	ret = mfpwm_acquire(pc->pwmf);
++	if (ret)
++		return ret;
 +
-+	if (!!enable != pc->is_enabled) {
-+		ret = mfpwm_acquire(pc->pwmf);
-+		if (ret)
-+			return ret;
-+
++	if (!!enable != rkpwmc_is_enabled(pc->pwmf)) {
 +		if (enable) {
 +			mfpwm_reg_write(pc->pwmf->base, PWMV4_REG_ENABLE,
 +					 PWMV4_EN(false));
@@ -179,8 +191,6 @@ index 000000000000..63e1286303f9
 +			ret = mfpwm_acquire(pc->pwmf);
 +			if (ret)
 +				goto err_unprotect_pwm_clk;
-+
-+			pc->is_enabled = true;
 +		} else {
 +			mfpwm_reg_write(pc->pwmf->base, PWMV4_REG_INT_EN,
 +					 PWMV4_INT_LPC_W(false) |
@@ -189,12 +199,11 @@ index 000000000000..63e1286303f9
 +					 PWMV4_EN(false) | PWMV4_CLK_EN(false));
 +			clk_rate_exclusive_put(pc->pwmf->core);
 +			clk_disable(pc->pwmf->core);
-+			pc->is_enabled = false;
 +			mfpwm_release(pc->pwmf);
 +		}
-+
-+		mfpwm_release(pc->pwmf);
 +	}
++
++	mfpwm_release(pc->pwmf);
 +
 +	return 0;
 +
@@ -220,7 +229,7 @@ index 000000000000..63e1286303f9
 +static struct counter_count rkpwmc_counts[] = {
 +	{
 +		.id = COUNT_LPC,
-+		.name = "PWM core clock cycles during which the signal was low",
++		.name = "Low Polarity Capture",
 +		.functions_list = rkpwmc_functions,
 +		.num_functions = ARRAY_SIZE(rkpwmc_functions),
 +		.synapses = rkpwmc_pwm_synapses,
@@ -230,7 +239,7 @@ index 000000000000..63e1286303f9
 +	},
 +	{
 +		.id = COUNT_HPC,
-+		.name = "PWM core clock cycles during which the signal was high",
++		.name = "High Polarity Capture",
 +		.functions_list = rkpwmc_functions,
 +		.num_functions = ARRAY_SIZE(rkpwmc_functions),
 +		.synapses = rkpwmc_pwm_synapses,
@@ -245,19 +254,22 @@ index 000000000000..63e1286303f9
 +{
 +	struct rockchip_pwm_capture *pc = counter_priv(counter);
 +
-+	guard(spinlock)(&pc->enable_lock);
-+
-+	if (!pc->is_enabled) {
-+		*value = 0;
-+		return 0;
-+	}
-+
 +	switch (count->id) {
 +	case COUNT_LPC:
-+		*value = mfpwm_reg_read(pc->pwmf->base, PWMV4_REG_LPC);
++		if (rkpwmc_acquire_if_enabled(pc)) {
++			*value = mfpwm_reg_read(pc->pwmf->base, PWMV4_REG_LPC);
++			mfpwm_release(pc->pwmf);
++		} else {
++			*value = 0;
++		}
 +		return 0;
 +	case COUNT_HPC:
-+		*value = mfpwm_reg_read(pc->pwmf->base, PWMV4_REG_HPC);
++		if (rkpwmc_acquire_if_enabled(pc)) {
++			*value = mfpwm_reg_read(pc->pwmf->base, PWMV4_REG_HPC);
++			mfpwm_release(pc->pwmf);
++		} else {
++			*value = 0;
++		}
 +		return 0;
 +	default:
 +		return -EINVAL;
@@ -317,14 +329,11 @@ index 000000000000..63e1286303f9
 +
 +	pc = counter_priv(counter);
 +	pc->pwmf = pwmf;
-+	spin_lock_init(&pc->enable_lock);
 +
 +	platform_set_drvdata(pdev, pc);
 +
-+	ret = devm_request_irq(&pdev->dev, pwmf->irq, rkpwmc_irq_handler,
-+			       IRQF_SHARED, pdev->name, pc);
-+	if (ret)
-+		return dev_err_probe(&pdev->dev, ret, "Failed requesting IRQ\n");
++	/* If the counter is on at module probe, acquire it */
++	rkpwmc_acquire_if_enabled(pc);
 +
 +	counter->name = pdev->name;
 +	counter->signals = rkpwmc_signals;
@@ -338,6 +347,11 @@ index 000000000000..63e1286303f9
 +	ret = devm_counter_add(&pdev->dev, counter);
 +	if (ret < 0)
 +		return dev_err_probe(&pdev->dev, ret, "Failed to add counter\n");
++
++	ret = devm_request_irq(&pdev->dev, pwmf->irq, rkpwmc_irq_handler,
++			       IRQF_SHARED, pdev->name, pc);
++	if (ret)
++		return dev_err_probe(&pdev->dev, ret, "Failed requesting IRQ\n");
 +
 +	return 0;
 +}
@@ -363,6 +377,3 @@ index 000000000000..63e1286303f9
 +MODULE_IMPORT_NS("ROCKCHIP_MFPWM");
 +MODULE_IMPORT_NS("COUNTER");
 +MODULE_ALIAS("platform:rockchip-pwm-capture");
-
--- 
-2.51.1

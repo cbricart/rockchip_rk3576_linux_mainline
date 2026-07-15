@@ -1,13 +1,22 @@
+Subject: [PATCH v5 5/6] arm64: dts: rockchip: add PWM nodes to RK3576 SoC dtsi
+Date: Mon, 20 Apr 2026 15:52:42 +0200	[thread overview]
+Message-ID: <20260420-rk3576-pwm-v5-5-ae7cfbbe5427@collabora.com> (raw)
+In-Reply-To: <20260420-rk3576-pwm-v5-0-ae7cfbbe5427@collabora.com>
+
+The RK3576 SoC features three distinct PWM controllers, with variable
+numbers of channels. Add each channel as a separate node to the SoC's
+device tree, as they don't really overlap in register ranges.
+
 Signed-off-by: Nicolas Frattaroli <nicolas.frattaroli@collabora.com>
 ---
  arch/arm64/boot/dts/rockchip/rk3576.dtsi | 208 +++++++++++++++++++++++++++++++
  1 file changed, 208 insertions(+)
 
 diff --git a/arch/arm64/boot/dts/rockchip/rk3576.dtsi b/arch/arm64/boot/dts/rockchip/rk3576.dtsi
-index f0c3ab00a7f3..1e135cf09efc 100644
+index e12a2a0cfb89..55d6b103c329 100644
 --- a/arch/arm64/boot/dts/rockchip/rk3576.dtsi
 +++ b/arch/arm64/boot/dts/rockchip/rk3576.dtsi
-@@ -1030,6 +1030,32 @@ uart1: serial@27310000 {
+@@ -1032,6 +1032,32 @@ uart1: serial@27310000 {
  			status = "disabled";
  		};
  
@@ -40,7 +49,7 @@ index f0c3ab00a7f3..1e135cf09efc 100644
  		pmu: power-management@27380000 {
  			compatible = "rockchip,rk3576-pmu", "syscon", "simple-mfd";
  			reg = <0x0 0x27380000 0x0 0x800>;
-@@ -2480,6 +2506,188 @@ uart9: serial@2adc0000 {
+@@ -2630,6 +2656,188 @@ uart9: serial@2adc0000 {
  			status = "disabled";
  		};
  
@@ -229,6 +238,3 @@ index f0c3ab00a7f3..1e135cf09efc 100644
  		saradc: adc@2ae00000 {
  			compatible = "rockchip,rk3576-saradc", "rockchip,rk3588-saradc";
  			reg = <0x0 0x2ae00000 0x0 0x10000>;
-
--- 
-2.51.1

@@ -1,35 +1,81 @@
+From: Nicolas Frattaroli <nicolas.frattaroli@collabora.com>
+To: "Uwe Kleine-König" <ukleinek@kernel.org>,
+	"Rob Herring" <robh@kernel.org>,
+	"Krzysztof Kozlowski" <krzk+dt@kernel.org>,
+	"Conor Dooley" <conor+dt@kernel.org>,
+	"Heiko Stuebner" <heiko@sntech.de>, "Lee Jones" <lee@kernel.org>,
+	"William Breathitt Gray" <wbg@kernel.org>,
+	"Damon Ding" <damon.ding@rock-chips.com>
+Cc: Nicolas Frattaroli <nicolas.frattaroli@collabora.com>,
+	 kernel@collabora.com, Jonas Karlman <jonas@kwiboo.se>,
+	 Alexey Charkov <alchark@gmail.com>,
+	linux-rockchip@lists.infradead.org,  linux-pwm@vger.kernel.org,
+	devicetree@vger.kernel.org,
+	 linux-arm-kernel@lists.infradead.org,
+	linux-kernel@vger.kernel.org,  linux-iio@vger.kernel.org
+Subject: [PATCH v5 2/6] mfd: Add Rockchip mfpwm driver
+Date: Mon, 20 Apr 2026 15:52:39 +0200	[thread overview]
+Message-ID: <20260420-rk3576-pwm-v5-2-ae7cfbbe5427@collabora.com> (raw)
+In-Reply-To: <20260420-rk3576-pwm-v5-0-ae7cfbbe5427@collabora.com>
+
+With the Rockchip RK3576, the PWM IP used by Rockchip has changed
+substantially. Looking at both the downstream pwm-rockchip driver as
+well as the mainline pwm-rockchip driver made it clear that with all its
+additional features and its differences from previous IP revisions, it
+is best supported in a new driver.
+
+This brings us to the question as to what such a new driver should be.
+To me, it soon became clear that it should actually be several new
+drivers, most prominently when Uwe Kleine-König let me know that I
+should not implement the pwm subsystem's capture callback, but instead
+write a counter driver for this functionality.
+
+Combined with the other as-of-yet unimplemented functionality of this
+new IP, it became apparent that it needs to be spread across several
+subsystems.
+
+For this reason, we add a new MFD core driver, called mfpwm (short for
+"Multi-function PWM"). This "parent" driver makes sure that only one
+device function driver is using the device at a time, and is in charge
+of registering the MFD cell devices for the individual device functions
+offered by the device.
+
+An acquire/release pattern is used to guarantee that device function
+drivers don't step on each other's toes.
+
 Signed-off-by: Nicolas Frattaroli <nicolas.frattaroli@collabora.com>
 ---
  MAINTAINERS                        |   2 +
- drivers/mfd/Kconfig                |  15 ++
+ drivers/mfd/Kconfig                |  16 ++
  drivers/mfd/Makefile               |   1 +
- drivers/mfd/rockchip-mfpwm.c       | 340 +++++++++++++++++++++++++++
- include/linux/mfd/rockchip-mfpwm.h | 454 +++++++++++++++++++++++++++++++++++++
- 5 files changed, 812 insertions(+)
+ drivers/mfd/rockchip-mfpwm.c       | 357 ++++++++++++++++++++++++++++
+ include/linux/mfd/rockchip-mfpwm.h | 470 +++++++++++++++++++++++++++++++++++++
+ 5 files changed, 846 insertions(+)
 
 diff --git a/MAINTAINERS b/MAINTAINERS
-index baecabab35a2..8f3235ba825e 100644
+index 86f20cb563c6..d52731242a33 100644
 --- a/MAINTAINERS
 +++ b/MAINTAINERS
-@@ -22372,6 +22372,8 @@ L:	linux-rockchip@lists.infradead.org
+@@ -23178,6 +23178,8 @@ L:	linux-rockchip@lists.infradead.org
  L:	linux-pwm@vger.kernel.org
  S:	Maintained
  F:	Documentation/devicetree/bindings/pwm/rockchip,rk3576-pwm.yaml
-+F:	drivers/soc/rockchip/mfpwm.c
-+F:	include/soc/rockchip/mfpwm.h
++F:	drivers/mfd/rockchip-mfpwm.c
++F:	include/linux/mfd/rockchip-mfpwm.h
  
  ROCKCHIP RK3568 RANDOM NUMBER GENERATOR SUPPORT
  M:	Daniel Golle <daniel@makrotopia.org>
 diff --git a/drivers/mfd/Kconfig b/drivers/mfd/Kconfig
-index dbeac6825a10..8b3a3160fbdf 100644
+index 7192c9d1d268..80b4e82c4937 100644
 --- a/drivers/mfd/Kconfig
 +++ b/drivers/mfd/Kconfig
-@@ -1367,6 +1367,21 @@ config MFD_RC5T583
+@@ -1378,6 +1378,22 @@ config MFD_RC5T583
  	  Additional drivers must be enabled in order to use the
  	  different functionality of the device.
  
 +config MFD_ROCKCHIP_MFPWM
 +	tristate "Rockchip multi-function PWM controller"
++	depends on ARCH_ROCKCHIP || COMPILE_TEST
 +	depends on OF
 +	depends on HAS_IOMEM
 +	depends on COMMON_CLK
@@ -60,10 +106,10 @@ index e75e8045c28a..ebadbaea9e4a 100644
  obj-$(CONFIG_MFD_RK8XX_SPI)	+= rk8xx-spi.o
 diff --git a/drivers/mfd/rockchip-mfpwm.c b/drivers/mfd/rockchip-mfpwm.c
 new file mode 100644
-index 000000000000..08c2d8da41b7
+index 000000000000..72d04982b961
 --- /dev/null
 +++ b/drivers/mfd/rockchip-mfpwm.c
-@@ -0,0 +1,340 @@
+@@ -0,0 +1,357 @@
 +// SPDX-License-Identifier: GPL-2.0-or-later
 +/*
 + * Copyright (c) 2025 Collabora Ltd.
@@ -241,6 +287,26 @@ index 000000000000..08c2d8da41b7
 +}
 +EXPORT_SYMBOL_NS_GPL(mfpwm_release, "ROCKCHIP_MFPWM");
 +
++int mfpwm_get_mode(const struct rockchip_mfpwm_func *pwmf)
++{
++	struct rockchip_mfpwm *mfpwm;
++	int ret;
++
++	ret = mfpwm_check_pwmf(pwmf, "mfpwm_acquire");
++	if (ret)
++		return ret;
++
++	mfpwm = pwmf->parent;
++
++	guard(spinlock_irqsave)(&mfpwm->state_lock);
++
++	if (!rockchip_pwm_v4_is_enabled(mfpwm_reg_read(mfpwm->base, PWMV4_REG_ENABLE)))
++		return -1;
++
++	return mfpwm_reg_read(mfpwm->base, PWMV4_REG_CTRL) & PWMV4_MODE_MASK;
++}
++EXPORT_SYMBOL_NS_GPL(mfpwm_get_mode, "ROCKCHIP_MFPWM");
++
 +/**
 + * mfpwm_register_subdev - register a single mfpwm_func
 + * @mfpwm: pointer to the parent &struct rockchip_mfpwm
@@ -268,9 +334,6 @@ index 000000000000..08c2d8da41b7
 +	cell.name = name;
 +	cell.platform_data = func;
 +	cell.pdata_size = sizeof(*func);
-+	// cell.ignore_resource_conflicts = true;
-+	// cell.resources = mfpwm->pdev->resource;
-+	// cell.num_resources = mfpwm->pdev->num_resources;
 +
 +	return devm_mfd_add_devices(&mfpwm->pdev->dev, func->id, &cell, 1, NULL,
 +				    0, NULL);
@@ -280,7 +343,7 @@ index 000000000000..08c2d8da41b7
 +{
 +	int ret;
 +
-+	ret = mfpwm_register_subdev(mfpwm, "pwm-rockchip-v4");
++	ret = mfpwm_register_subdev(mfpwm, "rockchip-pwm-v4");
 +	if (ret)
 +		return ret;
 +
@@ -406,10 +469,10 @@ index 000000000000..08c2d8da41b7
 +MODULE_LICENSE("GPL");
 diff --git a/include/linux/mfd/rockchip-mfpwm.h b/include/linux/mfd/rockchip-mfpwm.h
 new file mode 100644
-index 000000000000..78d9c3396f7e
+index 000000000000..dbf1588a4382
 --- /dev/null
 +++ b/include/linux/mfd/rockchip-mfpwm.h
-@@ -0,0 +1,454 @@
+@@ -0,0 +1,470 @@
 +/* SPDX-License-Identifier: GPL-2.0-or-later */
 +/*
 + * Copyright (c) 2025 Collabora Ltd.
@@ -863,7 +926,20 @@ index 000000000000..78d9c3396f7e
 + */
 +extern void mfpwm_release(const struct rockchip_mfpwm_func *pwmf);
 +
++/**
++ * mfpwm_get_mode - get the current mode the hardware is in
++ * @pwmf: pointer to a &struct rockchip_mfpwm_func
++ *
++ * Check the hardware registers of the PWM hardware to determine which mode it
++ * is currently operating in, if any.
++ *
++ * Returns:
++ *   - %-EINVAL if @pwmf is %NULL or an error pointer
++ *   - %-1 if the PWM hardware is off, regardless of operating mode
++ *   - %PWMV4_MODE_ONESHOT if PWM hardware is in one-shot output mode
++ *   - %PWMV4_MODE_CONT if PWM hardware is in continuous output mode
++ *   - %PWMV4_MODE_CAPTURE if PWM hardware is in capture mode
++ */
++extern int mfpwm_get_mode(const struct rockchip_mfpwm_func *pwmf);
++
 +#endif /* __SOC_ROCKCHIP_MFPWM_H__ */
-
--- 
-2.51.1

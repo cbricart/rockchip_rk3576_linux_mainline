@@ -1,3 +1,24 @@
+Subject: [PATCH v5 1/6] dt-bindings: pwm: Add a new binding for rockchip,rk3576-pwm
+Date: Mon, 20 Apr 2026 15:52:38 +0200	[thread overview]
+Message-ID: <20260420-rk3576-pwm-v5-1-ae7cfbbe5427@collabora.com> (raw)
+In-Reply-To: <20260420-rk3576-pwm-v5-0-ae7cfbbe5427@collabora.com>
+
+The Rockchip RK3576 SoC has a newer PWM controller IP revision than
+previous Rockchip SoCs. This IP, called "PWMv4" by Rockchip, introduces
+several new features, and consequently differs in its bindings.
+
+Instead of expanding the ever-growing rockchip-pwm binding that already
+has an if-condition, add an entirely new binding to handle this.
+
+There are two additional clocks, "osc" and "rc". These are available for
+every PWM instance, and the PWM hardware can switch between the "pwm",
+"osc" and "rc" clock at runtime.
+
+The PWM controller also comes with an interrupt now. This interrupt is
+used to signal various conditions.
+
+Reviewed-by: Conor Dooley <conor.dooley@microchip.com>
+Reviewed-by: Rob Herring (Arm) <robh@kernel.org>
 Signed-off-by: Nicolas Frattaroli <nicolas.frattaroli@collabora.com>
 ---
  .../bindings/pwm/rockchip,rk3576-pwm.yaml          | 77 ++++++++++++++++++++++
@@ -88,10 +109,10 @@ index 000000000000..48d5055c8b06
 +        };
 +    };
 diff --git a/MAINTAINERS b/MAINTAINERS
-index 252b06d4240c..baecabab35a2 100644
+index 891fb83ba7a9..86f20cb563c6 100644
 --- a/MAINTAINERS
 +++ b/MAINTAINERS
-@@ -22366,6 +22366,13 @@ F:	Documentation/userspace-api/media/v4l/metafmt-rkisp1.rst
+@@ -23172,6 +23172,13 @@ F:	Documentation/userspace-api/media/v4l/metafmt-rkisp1.rst
  F:	drivers/media/platform/rockchip/rkisp1
  F:	include/uapi/linux/rkisp1-config.h
  
@@ -105,6 +126,3 @@ index 252b06d4240c..baecabab35a2 100644
  ROCKCHIP RK3568 RANDOM NUMBER GENERATOR SUPPORT
  M:	Daniel Golle <daniel@makrotopia.org>
  M:	Aurelien Jarno <aurelien@aurel32.net>
-
--- 
-2.51.1

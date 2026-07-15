@@ -207,7 +207,6 @@
 
 	backlight: backlight {
 		compatible = "pwm-backlight";
-		power-supply = <&vcc_5v0_sys>;
 		pwms = <&pwm2_8ch_2 0 25000 PWM_POLARITY_INVERTED>;
 		brightness-levels = <
 			  0   1   2   3   4   5   6   7

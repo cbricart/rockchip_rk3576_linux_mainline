@@ -834,7 +834,7 @@
 &sdhci {
 	bus-width = <8>;
 	full-pwr-cycle-in-suspend;
-	max-frequency = <100000000>;
+	max-frequency = <52000000>;
 	mmc-hs200-1_8v;
 
 	/delete-property/ supports-cqe;

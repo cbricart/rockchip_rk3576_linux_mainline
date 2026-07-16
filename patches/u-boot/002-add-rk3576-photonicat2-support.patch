@@ -24,9 +24,9 @@
 +&sdhci {
 +	bus-width = <8>;
 +	full-pwr-cycle-in-suspend;
-+	max-frequency = <150000000>;
-+	mmc-hs400-1_8v;
-+	mmc-hs400-enhanced-strobe;
++	max-frequency = <52000000>;
++	mmc-hs200-1_8v;
++	/* mmc-hs400-enhanced-strobe; */
 +
 +	/delete-property/ supports-cqe;
 +

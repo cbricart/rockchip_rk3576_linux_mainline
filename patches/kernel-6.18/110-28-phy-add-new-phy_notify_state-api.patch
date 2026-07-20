@@ -1,0 +1,118 @@
+From 4edf654be5471659e3260be0a557eaa2ece668ab Mon Sep 17 00:00:00 2001
+From: Peter Griffin <peter.griffin@linaro.org>
+Date: Wed, 12 Nov 2025 16:27:06 +0000
+Subject: [PATCH] phy: add new phy_notify_state() api
+
+Add a new phy_notify_state() api that notifies and configures a phy for a
+given state transition.
+
+This is intended to be used by phy drivers which need to do some runtime
+configuration of parameters that can't be handled by phy_calibrate() or
+phy_power_{on|off}().
+
+The first usage of this API is in the Samsung UFS phy that needs to issue
+some register writes when entering and exiting the hibernate link state.
+
+Signed-off-by: Peter Griffin <peter.griffin@linaro.org>
+Reviewed-by: Neil Armstrong <neil.armstrong@linaro.org>
+Link: https://patch.msgid.link/20251112-phy-notify-pmstate-v5-1-39df622d8fcb@linaro.org
+Signed-off-by: Vinod Koul <vkoul@kernel.org>
+---
+ drivers/phy/phy-core.c  | 25 +++++++++++++++++++++++++
+ include/linux/phy/phy.h | 19 +++++++++++++++++++
+ 2 files changed, 44 insertions(+)
+
+diff --git a/drivers/phy/phy-core.c b/drivers/phy/phy-core.c
+index 04a5a34e7a950a..60be8af984bf06 100644
+--- a/drivers/phy/phy-core.c
++++ b/drivers/phy/phy-core.c
+@@ -520,6 +520,31 @@ int phy_notify_disconnect(struct phy *phy, int port)
+ }
+ EXPORT_SYMBOL_GPL(phy_notify_disconnect);
+ 
++/**
++ * phy_notify_state() - phy state notification
++ * @phy: the PHY returned by phy_get()
++ * @state: the PHY state
++ *
++ * Notify the PHY of a state transition. Used to notify and
++ * configure the PHY accordingly.
++ *
++ * Returns: %0 if successful, a negative error code otherwise
++ */
++int phy_notify_state(struct phy *phy, union phy_notify state)
++{
++	int ret;
++
++	if (!phy || !phy->ops->notify_phystate)
++		return 0;
++
++	mutex_lock(&phy->mutex);
++	ret = phy->ops->notify_phystate(phy, state);
++	mutex_unlock(&phy->mutex);
++
++	return ret;
++}
++EXPORT_SYMBOL_GPL(phy_notify_state);
++
+ /**
+  * phy_configure() - Changes the phy parameters
+  * @phy: the phy returned by phy_get()
+diff --git a/include/linux/phy/phy.h b/include/linux/phy/phy.h
+index 13add0c2c40721..2af0d01ebb39f2 100644
+--- a/include/linux/phy/phy.h
++++ b/include/linux/phy/phy.h
+@@ -53,6 +53,15 @@ enum phy_media {
+ 	PHY_MEDIA_DAC,
+ };
+ 
++enum phy_ufs_state {
++	PHY_UFS_HIBERN8_ENTER,
++	PHY_UFS_HIBERN8_EXIT,
++};
++
++union phy_notify {
++	enum phy_ufs_state ufs_state;
++};
++
+ /**
+  * union phy_configure_opts - Opaque generic phy configuration
+  *
+@@ -83,6 +92,7 @@ union phy_configure_opts {
+  * @set_speed: set the speed of the phy (optional)
+  * @reset: resetting the phy
+  * @calibrate: calibrate the phy
++ * @notify_phystate: notify and configure the phy for a particular state
+  * @release: ops to be performed while the consumer relinquishes the PHY
+  * @owner: the module owner containing the ops
+  */
+@@ -132,6 +142,7 @@ struct phy_ops {
+ 	int	(*connect)(struct phy *phy, int port);
+ 	int	(*disconnect)(struct phy *phy, int port);
+ 
++	int	(*notify_phystate)(struct phy *phy, union phy_notify state);
+ 	void	(*release)(struct phy *phy);
+ 	struct module *owner;
+ };
+@@ -255,6 +266,7 @@ int phy_reset(struct phy *phy);
+ int phy_calibrate(struct phy *phy);
+ int phy_notify_connect(struct phy *phy, int port);
+ int phy_notify_disconnect(struct phy *phy, int port);
++int phy_notify_state(struct phy *phy, union phy_notify state);
+ static inline int phy_get_bus_width(struct phy *phy)
+ {
+ 	return phy->attrs.bus_width;
+@@ -412,6 +424,13 @@ static inline int phy_notify_disconnect(struct phy *phy, int index)
+ 	return -ENOSYS;
+ }
+ 
++static inline int phy_notify_state(struct phy *phy, union phy_notify state)
++{
++	if (!phy)
++		return 0;
++	return -ENOSYS;
++}
++
+ static inline int phy_configure(struct phy *phy,
+ 				union phy_configure_opts *opts)
+ {

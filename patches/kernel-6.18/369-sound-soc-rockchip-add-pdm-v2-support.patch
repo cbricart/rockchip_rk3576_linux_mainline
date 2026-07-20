@@ -6,7 +6,7 @@
  
 +config SND_SOC_ROCKCHIP_PDM_V2
 +	tristate "Rockchip PDM Version 2 Controller Driver"
-+	depends on HAVE_CLK && SND_SOC_ROCKCHIP
++	depends on HAVE_CLK && SND_SOC_ROCKCHIP_I2S
 +	select SND_SOC_GENERIC_DMAENGINE_PCM
 +	select RATIONAL
 +	help

@@ -1,0 +1,24 @@
+When all MMU register mappings fail in rk_iommu_probe(), the error
+path returns PTR_ERR(iommu->bases[0]). However, bases[0] can be NULL
+if the first platform_get_resource() also returned NULL, causing
+PTR_ERR(NULL) to evaluate to 0 and the probe to succeed silently.
+
+Return -ENODEV directly instead.
+
+Signed-off-by: ZhaoJinming <zhaojinming@uniontech.com>
+Signed-off-by: Will Deacon <will@kernel.org>
+
+diff --git a/drivers/iommu/rockchip-iommu.c b/drivers/iommu/rockchip-iommu.c
+index d8cfce042decb..05643dbde26da 100644
+--- a/drivers/iommu/rockchip-iommu.c
++++ b/drivers/iommu/rockchip-iommu.c
+@@ -1243,7 +1243,7 @@ static int rk_iommu_probe(struct platform_device *pdev)
+ 		iommu->num_mmu++;
+ 	}
+ 	if (iommu->num_mmu == 0)
+-		return PTR_ERR(iommu->bases[0]);
++		return -ENODEV;
+ 
+ 	iommu->num_irq = platform_irq_count(pdev);
+ 	if (iommu->num_irq < 0)
+

@@ -1,0 +1,22 @@
+From: Detlev Casanova @ 2026-08-10 15:22 UTC (permalink / raw)
+  To: Mauro Carvalho Chehab, Ezequiel Garcia, Heiko Stuebner,
+	Nicolas Dufresne, Hans Verkuil, Jonas Karlman
+  Cc: Sven Püschel, kernel, linux-media, linux-kernel,
+	linux-rockchip, linux-arm-kernel, Detlev Casanova
+
+---
+ drivers/media/v4l2-core/v4l2-mem2mem.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/drivers/media/v4l2-core/v4l2-mem2mem.c b/drivers/media/v4l2-core/v4l2-mem2mem.c
+index 14ac9c85803d..f6f8864f23d2 100644
+--- a/drivers/media/v4l2-core/v4l2-mem2mem.c
++++ b/drivers/media/v4l2-core/v4l2-mem2mem.c
+@@ -128,6 +128,7 @@ void v4l2_m2m_set_max_parallel_jobs(struct v4l2_m2m_dev *m2m_dev,
+ {
+ 	m2m_dev->max_parallel_jobs = max_parallel_jobs;
+ }
++EXPORT_SYMBOL(v4l2_m2m_set_max_parallel_jobs);
+ 
+ struct vb2_queue *v4l2_m2m_get_vq(struct v4l2_m2m_ctx *m2m_ctx,
+ 				       enum v4l2_buf_type type)

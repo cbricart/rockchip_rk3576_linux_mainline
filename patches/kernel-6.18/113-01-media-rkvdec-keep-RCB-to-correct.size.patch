@@ -1,3 +1,9 @@
+Currently, if a video changes resolution, the RCB size might be too small
+and the HW could try to write out of the allocated buffer.
+
+To fix that, make sure that the RCB size is validated for each run and
+increase the buffer size when needed.
+
 Fixes: e5640dbb991c ("media: rkvdec: Add RCB and SRAM support")
 Signed-off-by: Detlev Casanova <detlev.casanova@collabora.com>
 ---
@@ -144,6 +150,3 @@ index 1d1e9bfef8e9..31ddfcc58894 100644
  	ret = desc->ops->run(ctx);
  	if (ret)
  		rkvdec_job_finish(ctx, VB2_BUF_STATE_ERROR);
-
--- 
-2.53.0

@@ -1,0 +1,58 @@
+From e94160488e65ef801d27c1b626fb1632c16e7d56 Mon Sep 17 00:00:00 2001
+From: Jason Gunthorpe <jgg@nvidia.com>
+Date: Wed, 22 Oct 2025 19:21:04 -0700
+Subject: [PATCH] iommu: Generic support for RMRs during device release
+
+Generally an IOMMU driver should leave the translation as BLOCKED until the
+translation entry is probed onto a struct device. When the struct device is
+removed, the translation should be put back to BLOCKED.
+
+Drivers that are able to work like this can set their release_domain to the
+blocking domain, and the core code handles this work.
+
+The exception is when the device has an IOMMU_RESV_DIRECT region, in which
+case the OS should continuously allow translations for the given range. And
+the core code generally prevents using a BLOCKED domain with this device.
+
+Continue this logic for the device release and hoist some open coding from
+drivers. If the device has dev->iommu->require_direct and the driver uses a
+BLOCKED release_domain, override it to IDENTITY to preserve the semantics.
+
+The only remaining required driver code for IOMMU_RESV_DIRECT should preset
+an IDENTITY translation during early IOMMU startup for those devices.
+
+Signed-off-by: Jason Gunthorpe <jgg@nvidia.com>
+Signed-off-by: Nicolin Chen <nicolinc@nvidia.com>
+Reviewed-by: Lu Baolu <baolu.lu@linux.intel.com>
+Signed-off-by: Joerg Roedel <joerg.roedel@amd.com>
+---
+ drivers/iommu/iommu.c | 16 ++++++++++++++--
+ 1 file changed, 14 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/iommu/iommu.c b/drivers/iommu/iommu.c
+index 59244c744eabd2..adef1a37f93112 100644
+--- a/drivers/iommu/iommu.c
++++ b/drivers/iommu/iommu.c
+@@ -542,8 +542,20 @@ static void iommu_deinit_device(struct device *dev)
+ 	 * Regardless, if a delayed attach never occurred, then the release
+ 	 * should still avoid touching any hardware configuration either.
+ 	 */
+-	if (!dev->iommu->attach_deferred && ops->release_domain)
+-		ops->release_domain->ops->attach_dev(ops->release_domain, dev);
++	if (!dev->iommu->attach_deferred && ops->release_domain) {
++		struct iommu_domain *release_domain = ops->release_domain;
++
++		/*
++		 * If the device requires direct mappings then it should not
++		 * be parked on a BLOCKED domain during release as that would
++		 * break the direct mappings.
++		 */
++		if (dev->iommu->require_direct && ops->identity_domain &&
++		    release_domain == ops->blocked_domain)
++			release_domain = ops->identity_domain;
++
++		release_domain->ops->attach_dev(release_domain, dev);
++	}
+ 
+ 	if (ops->release_device)
+ 		ops->release_device(dev);

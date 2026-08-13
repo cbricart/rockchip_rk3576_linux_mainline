@@ -3,18 +3,17 @@ MMU sits behind the CBUF/DSU gates, so writes to DTE_ADDR are silently
 dropped until those clocks run too (reads work, writes need more clocks).
 Use devm_clk_bulk_get_all() to take every clock the devicetree provides
 instead of a fixed pair, so a platform can list the full set it needs.
+
 Clocks stay optional for the older clock-less devicetrees.
 
 Signed-off-by: Jiaxing Hu <gahing@gahingwoo.com>
----
- drivers/iommu/rockchip-iommu.c | 28 +++++++++-------------------
- 1 file changed, 9 insertions(+), 19 deletions(-)
+Signed-off-by: Will Deacon <will@kernel.org>
 
 diff --git a/drivers/iommu/rockchip-iommu.c b/drivers/iommu/rockchip-iommu.c
-index 0013cf196..62cd6b022 100644
+index 05643dbde26da..d041160d18af7 100644
 --- a/drivers/iommu/rockchip-iommu.c
 +++ b/drivers/iommu/rockchip-iommu.c
-@@ -93,11 +93,6 @@ struct rk_iommu_domain {
+@@ -104,11 +104,6 @@ struct rk_iommu_domain {
  	struct iommu_domain domain;
  };
  
@@ -23,10 +22,10 @@ index 0013cf196..62cd6b022 100644
 -	"aclk", "iface",
 -};
 -
- struct rk_iommu_ops {
- 	phys_addr_t (*pt_address)(u32 dte);
- 	u32 (*mk_dtentries)(dma_addr_t pt_dma);
-@@ -1246,25 +1241,20 @@ static int rk_iommu_probe(struct platform_device *pdev)
+ struct rk_iommu {
+ 	struct device *dev;
+ 	void __iomem **bases;
+@@ -1252,25 +1247,20 @@ static int rk_iommu_probe(struct platform_device *pdev)
  	iommu->reset_disabled = device_property_read_bool(dev,
  					"rockchip,disable-mmu-reset");
  

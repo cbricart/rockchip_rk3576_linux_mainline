@@ -1,3 +1,9 @@
+A left-over from the iommu restore mecanism was forgotten.
+As need_reset is never set to true, the if has no use.
+
+The actual restore function is called above it vase the IRQ isn't in a
+success status.
+
 Signed-off-by: Detlev Casanova <detlev.casanova@collabora.com>
 ---
  drivers/media/platform/rockchip/rkvdec/rkvdec.c | 8 --------
@@ -43,6 +49,3 @@ index 31ddfcc58894..db2731af06cf 100644
  	if (cancel_delayed_work(&rkvdec->watchdog_work))
  		rkvdec_job_finish(ctx, state);
  
-
--- 
-2.53.0

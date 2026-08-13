@@ -1,0 +1,28 @@
+The same four id assignments are board-tested on RK3576 (ROCK 4D) as
+part of Jiaxing's RK3576 enablement series (v2 6/8), so the change has
+been exercised on two SoCs between us.
+
+Verified on RK3588 (Orange Pi 5 Plus): after the change clk_summary
+shows one consumer handle per clock instead of four handles on aclk, the
+NPU still powers up and down cleanly through runtime PM, and a
+MobileNetV1 inference run via the Teflon TFLite delegate produces
+bit-identical output tensors to the unpatched driver.
+
+ drivers/accel/rocket/rocket_core.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/drivers/accel/rocket/rocket_core.c b/drivers/accel/rocket/rocket_core.c
+index b3b2fa9..5dd260b 100644
+--- a/drivers/accel/rocket/rocket_core.c
++++ b/drivers/accel/rocket/rocket_core.c
+@@ -28,6 +28,10 @@ int rocket_core_init(struct rocket_core *core)
+ 	if (err)
+ 		return dev_err_probe(dev, err, "failed to get resets for core %d\n", core->index);
+
++	core->clks[0].id = "aclk";
++	core->clks[1].id = "hclk";
++	core->clks[2].id = "npu";
++	core->clks[3].id = "pclk";
+ 	err = devm_clk_bulk_get(dev, ARRAY_SIZE(core->clks), core->clks);
+ 	if (err)
+ 		return dev_err_probe(dev, err, "failed to get clocks for core %d\n", core->index);

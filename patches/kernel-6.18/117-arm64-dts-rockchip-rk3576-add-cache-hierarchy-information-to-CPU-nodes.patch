@@ -1,0 +1,163 @@
+The RK3576 CPU nodes carry no cache properties, so cache_setup_of_node()
+fails with -ENOENT on the first CPU. That error propagates out of
+cache_shared_cpu_map_setup(), which discards the topology arm64 had
+already derived from CLIDR, and the boot log gets
+
+  cacheinfo: Unable to detect cache hierarchy for CPU 0
+
+Add L1 i/d cache size, line-size and sets to all eight CPU nodes, plus
+per-cluster unified L2 nodes wired up through next-level-cache. Sizes
+come from the RK3576 datasheet: the Cortex-A72 cluster has 48KB L1 I and
+32KB L1 D per core with 1MB of L2, the Cortex-A53 cluster has 32KB L1 I
+and 32KB L1 D per core with 512KB of L2. Line size and associativity are
+architecturally fixed per the Cortex-A53 and Cortex-A72 TRMs, so the
+*-sets values follow as size / (line-size * ways).
+
+With this applied, lscpu reports the full hierarchy instead of only the
+level, type and shared_cpu_list:
+
+ NAME ONE-SIZE ALL-SIZE WAYS TYPE        LEVEL SETS PHY-LINE COHERENCY-SIZE
+ L1d       32K     256K    4 Data            1  128                      64
+ L1i       32K     320K    2 Instruction     1  256                      64
+ L2       512K     1.5M   16 Unified         2  512                      64
+
+Tested-by: Alexey Charkov <alchark@flipper.net>
+Signed-off-by: Cole Munz <Munzzyy1@proton.me>
+---
+ arch/arm64/boot/dts/rockchip/rk3576.dtsi | 74 ++++++++++++++++++++++++
+ 1 file changed, 74 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/rockchip/rk3576.dtsi b/arch/arm64/boot/dts/rockchip/rk3576.dtsi
+index e12a2a0cfb89..656513aa999f 100644
+--- a/arch/arm64/boot/dts/rockchip/rk3576.dtsi
++++ b/arch/arm64/boot/dts/rockchip/rk3576.dtsi
+@@ -117,6 +117,13 @@ cpu_l0: cpu@0 {
+ 			dynamic-power-coefficient = <120>;
+ 			cpu-idle-states = <&CPU_SLEEP>;
+ 			#cooling-cells = <2>;
++			i-cache-size = <0x8000>;
++			i-cache-line-size = <64>;
++			i-cache-sets = <256>;
++			d-cache-size = <0x8000>;
++			d-cache-line-size = <64>;
++			d-cache-sets = <128>;
++			next-level-cache = <&l2_cache_l>;
+ 		};
+ 
+ 		cpu_l1: cpu@1 {
+@@ -129,6 +136,13 @@ cpu_l1: cpu@1 {
+ 			operating-points-v2 = <&cluster0_opp_table>;
+ 			cpu-idle-states = <&CPU_SLEEP>;
+ 			#cooling-cells = <2>;
++			i-cache-size = <0x8000>;
++			i-cache-line-size = <64>;
++			i-cache-sets = <256>;
++			d-cache-size = <0x8000>;
++			d-cache-line-size = <64>;
++			d-cache-sets = <128>;
++			next-level-cache = <&l2_cache_l>;
+ 		};
+ 
+ 		cpu_l2: cpu@2 {
+@@ -141,6 +155,13 @@ cpu_l2: cpu@2 {
+ 			operating-points-v2 = <&cluster0_opp_table>;
+ 			cpu-idle-states = <&CPU_SLEEP>;
+ 			#cooling-cells = <2>;
++			i-cache-size = <0x8000>;
++			i-cache-line-size = <64>;
++			i-cache-sets = <256>;
++			d-cache-size = <0x8000>;
++			d-cache-line-size = <64>;
++			d-cache-sets = <128>;
++			next-level-cache = <&l2_cache_l>;
+ 		};
+ 
+ 		cpu_l3: cpu@3 {
+@@ -153,6 +174,13 @@ cpu_l3: cpu@3 {
+ 			operating-points-v2 = <&cluster0_opp_table>;
+ 			cpu-idle-states = <&CPU_SLEEP>;
+ 			#cooling-cells = <2>;
++			i-cache-size = <0x8000>;
++			i-cache-line-size = <64>;
++			i-cache-sets = <256>;
++			d-cache-size = <0x8000>;
++			d-cache-line-size = <64>;
++			d-cache-sets = <128>;
++			next-level-cache = <&l2_cache_l>;
+ 		};
+ 
+ 		cpu_b0: cpu@100 {
+@@ -166,6 +194,13 @@ cpu_b0: cpu@100 {
+ 			dynamic-power-coefficient = <320>;
+ 			cpu-idle-states = <&CPU_SLEEP>;
+ 			#cooling-cells = <2>;
++			i-cache-size = <0xc000>;
++			i-cache-line-size = <64>;
++			i-cache-sets = <256>;
++			d-cache-size = <0x8000>;
++			d-cache-line-size = <64>;
++			d-cache-sets = <256>;
++			next-level-cache = <&l2_cache_b>;
+ 		};
+ 
+ 		cpu_b1: cpu@101 {
+@@ -178,6 +213,13 @@ cpu_b1: cpu@101 {
+ 			operating-points-v2 = <&cluster1_opp_table>;
+ 			cpu-idle-states = <&CPU_SLEEP>;
+ 			#cooling-cells = <2>;
++			i-cache-size = <0xc000>;
++			i-cache-line-size = <64>;
++			i-cache-sets = <256>;
++			d-cache-size = <0x8000>;
++			d-cache-line-size = <64>;
++			d-cache-sets = <256>;
++			next-level-cache = <&l2_cache_b>;
+ 		};
+ 
+ 		cpu_b2: cpu@102 {
+@@ -190,6 +232,13 @@ cpu_b2: cpu@102 {
+ 			operating-points-v2 = <&cluster1_opp_table>;
+ 			cpu-idle-states = <&CPU_SLEEP>;
+ 			#cooling-cells = <2>;
++			i-cache-size = <0xc000>;
++			i-cache-line-size = <64>;
++			i-cache-sets = <256>;
++			d-cache-size = <0x8000>;
++			d-cache-line-size = <64>;
++			d-cache-sets = <256>;
++			next-level-cache = <&l2_cache_b>;
+ 		};
+ 
+ 		cpu_b3: cpu@103 {
+@@ -202,6 +251,31 @@ cpu_b3: cpu@103 {
+ 			operating-points-v2 = <&cluster1_opp_table>;
+ 			cpu-idle-states = <&CPU_SLEEP>;
+ 			#cooling-cells = <2>;
++			i-cache-size = <0xc000>;
++			i-cache-line-size = <64>;
++			i-cache-sets = <256>;
++			d-cache-size = <0x8000>;
++			d-cache-line-size = <64>;
++			d-cache-sets = <256>;
++			next-level-cache = <&l2_cache_b>;
++		};
++
++		l2_cache_l: l2-cache-cluster0 {
++			compatible = "cache";
++			cache-level = <2>;
++			cache-unified;
++			cache-size = <0x80000>;
++			cache-line-size = <64>;
++			cache-sets = <512>;
++		};
++
++		l2_cache_b: l2-cache-cluster1 {
++			compatible = "cache";
++			cache-level = <2>;
++			cache-unified;
++			cache-size = <0x100000>;
++			cache-line-size = <64>;
++			cache-sets = <1024>;
+ 		};
+ 
+ 		idle-states {

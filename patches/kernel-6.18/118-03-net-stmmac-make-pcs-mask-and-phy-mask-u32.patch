@@ -1,0 +1,65 @@
+From e4fd855c52ec5af34d920206190be29919fadca3 Mon Sep 17 00:00:00 2001
+From: "Russell King (Oracle)" <rmk+kernel@armlinux.org.uk>
+Date: Thu, 5 Mar 2026 10:43:02 +0000
+Subject: [PATCH] net: stmmac: make pcs_mask and phy_mask u32
+
+The PCS and PHY masks are passed to the mdio bus layer as phy_mask
+to prevent bus addresses between 0 and 31 inclusive being scanned,
+and this is declared as u32. Also declare these as u32 in stmmac
+for type consistency.
+
+Since this is a u32, use BIT_U32() rather than BIT() to generate
+values for these fields.
+
+Signed-off-by: Russell King (Oracle) <rmk+kernel@armlinux.org.uk>
+Reviewed-by: Maxime Chevallier <maxime.chevallier@bootlin.com>
+Tested-by: Maxime Chevallier <maxime.chevallier@bootlin.com>
+Link: https://patch.msgid.link/E1vy6AY-0000000BtxJ-3smT@rmk-PC.armlinux.org.uk
+Signed-off-by: Jakub Kicinski <kuba@kernel.org>
+---
+ drivers/net/ethernet/stmicro/stmmac/dwmac-intel.c    | 2 +-
+ drivers/net/ethernet/stmicro/stmmac/dwmac-loongson.c | 2 +-
+ include/linux/stmmac.h                               | 4 ++--
+ 3 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/drivers/net/ethernet/stmicro/stmmac/dwmac-intel.c b/drivers/net/ethernet/stmicro/stmmac/dwmac-intel.c
+index ece2a0c38562be..fc13bfb477838f 100644
+--- a/drivers/net/ethernet/stmicro/stmmac/dwmac-intel.c
++++ b/drivers/net/ethernet/stmicro/stmmac/dwmac-intel.c
+@@ -699,7 +699,7 @@ static int intel_mgbe_common_data(struct pci_dev *pdev,
+ 	/* Intel mgbe SGMII interface uses pcs-xcps */
+ 	if (plat->phy_interface == PHY_INTERFACE_MODE_SGMII ||
+ 	    plat->phy_interface == PHY_INTERFACE_MODE_1000BASEX) {
+-		plat->mdio_bus_data->pcs_mask = BIT(INTEL_MGBE_XPCS_ADDR);
++		plat->mdio_bus_data->pcs_mask = BIT_U32(INTEL_MGBE_XPCS_ADDR);
+ 		plat->mdio_bus_data->default_an_inband = true;
+ 		plat->select_pcs = intel_mgbe_select_pcs;
+ 	}
+diff --git a/drivers/net/ethernet/stmicro/stmmac/dwmac-loongson.c b/drivers/net/ethernet/stmicro/stmmac/dwmac-loongson.c
+index b913fe5af48887..ada6c6ef1f5cbd 100644
+--- a/drivers/net/ethernet/stmicro/stmmac/dwmac-loongson.c
++++ b/drivers/net/ethernet/stmicro/stmmac/dwmac-loongson.c
+@@ -168,7 +168,7 @@ static int loongson_gnet_data(struct pci_dev *pdev,
+ 	loongson_default_data(pdev, plat);
+ 
+ 	plat->phy_interface = PHY_INTERFACE_MODE_GMII;
+-	plat->mdio_bus_data->phy_mask = ~(u32)BIT(2);
++	plat->mdio_bus_data->phy_mask = ~BIT_U32(2);
+ 	plat->fix_mac_speed = loongson_gnet_fix_speed;
+ 
+ 	return 0;
+diff --git a/include/linux/stmmac.h b/include/linux/stmmac.h
+index 678d03d6d3bd81..965ada809fdfe8 100644
+--- a/include/linux/stmmac.h
++++ b/include/linux/stmmac.h
+@@ -84,8 +84,8 @@ struct stmmac_priv;
+ /* Platfrom data for platform device structure's platform_data field */
+ 
+ struct stmmac_mdio_bus_data {
+-	unsigned int phy_mask;
+-	unsigned int pcs_mask;
++	u32 phy_mask;
++	u32 pcs_mask;
+ 	int *irqs;
+ 	int probed_phy_irq;
+ 	bool needs_reset;

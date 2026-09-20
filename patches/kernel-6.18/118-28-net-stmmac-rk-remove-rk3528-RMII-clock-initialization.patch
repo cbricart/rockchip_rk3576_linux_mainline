@@ -1,0 +1,29 @@
+From 0c8107dbe72043c51886bb973fb5197b6f6641bc Mon Sep 17 00:00:00 2001
+From: "Russell King (Oracle)" <rmk+kernel@armlinux.org.uk>
+Date: Mon, 2 Feb 2026 10:04:15 +0000
+Subject: [PATCH] net: stmmac: rk: remove rk3528 RMII clock initialisation
+
+There is no need to pre-initialise the rk3528 RMII clock when
+selecting RMII mode on gmac0.
+
+Signed-off-by: Russell King (Oracle) <rmk+kernel@armlinux.org.uk>
+Link: https://patch.msgid.link/E1vmqn1-00000007VCh-47Sv@rmk-PC.armlinux.org.uk
+Signed-off-by: Jakub Kicinski <kuba@kernel.org>
+---
+ drivers/net/ethernet/stmicro/stmmac/dwmac-rk.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/drivers/net/ethernet/stmicro/stmmac/dwmac-rk.c b/drivers/net/ethernet/stmicro/stmmac/dwmac-rk.c
+index f00f4ffdc2f277..c7e88948c705df 100644
+--- a/drivers/net/ethernet/stmicro/stmmac/dwmac-rk.c
++++ b/drivers/net/ethernet/stmicro/stmmac/dwmac-rk.c
+@@ -1003,8 +1003,7 @@ static void rk3528_set_to_rmii(struct rk_priv_data *bsp_priv)
+ 			     RK3528_GMAC1_PHY_INTF_SEL_RMII);
+ 	else
+ 		regmap_write(bsp_priv->grf, RK3528_VO_GRF_GMAC_CON,
+-			     RK3528_GMAC0_PHY_INTF_SEL_RMII |
+-			     RK3528_GMAC0_CLK_RMII_DIV2);
++			     RK3528_GMAC0_PHY_INTF_SEL_RMII);
+ }
+ 
+ static const struct rk_reg_speed_data rk3528_gmac0_reg_speed_data = {

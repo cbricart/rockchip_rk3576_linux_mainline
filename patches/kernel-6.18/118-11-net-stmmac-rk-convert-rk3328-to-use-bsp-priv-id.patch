@@ -1,0 +1,79 @@
+From cdb5fdfcf39607823491668bf699024595431d61 Mon Sep 17 00:00:00 2001
+From: "Russell King (Oracle)" <rmk+kernel@armlinux.org.uk>
+Date: Mon, 26 Jan 2026 11:45:13 +0000
+Subject: [PATCH] net: stmmac: rk: convert rk3328 to use bsp_priv->id
+
+rk3328 contains two GMAC instances - gmac2io and gmac2phy. While the
+gmac2io instance may be connected to an external PHY, the gmac2phy
+instance is permanently connected via RMII to an on-SoC integrated PHY.
+
+The driver currently tests for the gmac2phy instance by checking
+bsp_priv->integrated_phy (determined from the PHY's phy-is-integrated
+property) and sometimes that the interface mode is RMII. This works
+because the rk3328.dtsi has:
+
+	gmac2phy: ethernet@ff550000 {
+		compatible = "rockchip,rk3328-gmac";
+		phy-mode = "rmii";
+		phy-handle = <&phy>;
+
+		mdio {
+			phy: ethernet-phy@0 {
+				phy-is-integrated;
+			};
+		};
+	};
+
+The driver contains a mechanism to look up the MMIO address in a table
+to determine bsp_priv->id, which is used for every other Rockchip
+device. Switch rk3328 to use this mechanism to determine bsp_priv->id
+and use that to select which GRF register is used for configuration,
+similarly to how the other Rockchip SoCs handle such differences.
+
+Signed-off-by: Russell King (Oracle) <rmk+kernel@armlinux.org.uk>
+Link: https://patch.msgid.link/E1vkL1t-00000005usQ-0vjt@rmk-PC.armlinux.org.uk
+Signed-off-by: Jakub Kicinski <kuba@kernel.org>
+---
+ drivers/net/ethernet/stmicro/stmmac/dwmac-rk.c | 15 +++++++++------
+ 1 file changed, 9 insertions(+), 6 deletions(-)
+
+diff --git a/drivers/net/ethernet/stmicro/stmmac/dwmac-rk.c b/drivers/net/ethernet/stmicro/stmmac/dwmac-rk.c
+index 0e66252eb5ae0b..c8b49ed2064a33 100644
+--- a/drivers/net/ethernet/stmicro/stmmac/dwmac-rk.c
++++ b/drivers/net/ethernet/stmicro/stmmac/dwmac-rk.c
+@@ -570,8 +570,7 @@ static void rk3328_set_to_rmii(struct rk_priv_data *bsp_priv)
+ {
+ 	unsigned int reg;
+ 
+-	reg = bsp_priv->integrated_phy ? RK3328_GRF_MAC_CON2 :
+-		  RK3328_GRF_MAC_CON1;
++	reg = bsp_priv->id ? RK3328_GRF_MAC_CON2 : RK3328_GRF_MAC_CON1;
+ 
+ 	regmap_write(bsp_priv->grf, reg,
+ 		     RK3328_GMAC_PHY_INTF_SEL(PHY_INTF_SEL_RMII) |
+@@ -591,10 +590,7 @@ static int rk3328_set_speed(struct rk_priv_data *bsp_priv,
+ {
+ 	unsigned int reg;
+ 
+-	if (interface == PHY_INTERFACE_MODE_RMII && bsp_priv->integrated_phy)
+-		reg = RK3328_GRF_MAC_CON2;
+-	else
+-		reg = RK3328_GRF_MAC_CON1;
++	reg = bsp_priv->id ? RK3328_GRF_MAC_CON2 : RK3328_GRF_MAC_CON1;
+ 
+ 	return rk_set_reg_speed(bsp_priv, &rk3328_reg_speed_data, reg,
+ 				interface, speed);
+@@ -614,6 +610,13 @@ static const struct rk_gmac_ops rk3328_ops = {
+ 	.set_speed = rk3328_set_speed,
+ 	.integrated_phy_powerup = rk3328_integrated_phy_powerup,
+ 	.integrated_phy_powerdown = rk_gmac_integrated_ephy_powerdown,
++
++	.regs_valid = true,
++	.regs = {
++		0xff540000, /* gmac2io */
++		0xff550000, /* gmac2phy */
++		0, /* sentinel */
++	},
+ };
+ 
+ #define RK3366_GRF_SOC_CON6	0x0418

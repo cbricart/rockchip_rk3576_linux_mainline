@@ -1,0 +1,50 @@
+On RK3568, the SGMII interface can be routed to either GMAC0 or
+GMAC1 via the pipe_sgmii_mac_sel bit in the pipe GRF registers.
+
+Add the optional "rockchip,sgmii-mac-sel" property to allow the
+device tree to select which GMAC controller is used for SGMII.
+
+The property takes a value of 0 (GMAC0) or 1 (GMAC1). The hardware
+reset value is 1 (GMAC1), but this can be overridden by setting the
+property to 0 for boards where SGMII is connected to GMAC0.
+
+This is necessary for boards such as the Ariaboard Photonicat, where
+the SGMII interface is connected to GMAC0 and needs to be explicitly
+configured.
+
+Signed-off-by: Coia Prant <coiaprant@gmail.com>
+---
+ .../bindings/phy/phy-rockchip-naneng-combphy.yaml   | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)
+
+diff --git a/Documentation/devicetree/bindings/phy/phy-rockchip-naneng-combphy.yaml b/Documentation/devicetree/bindings/phy/phy-rockchip-naneng-combphy.yaml
+index 379b08bd9e97a..8e898bce9af73 100644
+--- a/Documentation/devicetree/bindings/phy/phy-rockchip-naneng-combphy.yaml
++++ b/Documentation/devicetree/bindings/phy/phy-rockchip-naneng-combphy.yaml
+@@ -80,6 +80,15 @@ properties:
+     description:
+       Some additional pipe settings are accessed through GRF regs.
+ 
++  rockchip,sgmii-mac-sel:
++    $ref: /schemas/types.yaml#/definitions/uint32
++    enum: [0, 1]
++    default: 1
++    description:
++      Select gmac0 or gmac1 to be used as SGMII controller.
++      The hardware reset value is GMAC1 (1). Set this to 0 to route
++      SGMII to GMAC0.
++
+   "#phy-cells":
+     const: 1
+ 
+@@ -105,6 +114,10 @@ allOf:
+           maxItems: 1
+         reset-names:
+           maxItems: 1
++        rockchip,sgmii-mac-sel: true
++    else:
++      properties:
++        rockchip,sgmii-mac-sel: false
+   - if:
+       properties:
+         compatible:

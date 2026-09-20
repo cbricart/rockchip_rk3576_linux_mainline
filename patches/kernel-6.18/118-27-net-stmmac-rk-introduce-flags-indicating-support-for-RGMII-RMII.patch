@@ -1,0 +1,123 @@
+From d323769d64f21865ea2a9132aea0da7c6badc479 Mon Sep 17 00:00:00 2001
+From: "Russell King (Oracle)" <rmk+kernel@armlinux.org.uk>
+Date: Wed, 4 Feb 2026 09:14:17 +0000
+Subject: [PATCH] net: stmmac: rk: introduce flags indicating support for
+ RGMII/RMII
+
+Introduce two boolean flags into struct rk_priv_data indicating
+whether RGMII and/or RMII is supported for this instance. Use these
+to configure the supported_interfaces mask for phylink, validate the
+interface mode. Initialise these from equivalent flags in the
+rk_gmac_ops or depending on the presence of the ops->set_to_rgmii and
+ops->set_to_mii methods. Finally, make ops->set_to_* optional.
+
+This will allow us to get rid of empty set_to_rmii() methods.
+
+Signed-off-by: Russell King (Oracle) <rmk+kernel@armlinux.org.uk>
+Reviewed-by: Maxime Chevallier <maxime.chevallier@bootlin.com>
+Reviewed-by: Heiko Stuebner <heiko@sntech.de>
+Tested-by: Heiko Stuebner <heiko@sntech.de> #px30,rk3328,rk3568,rk3588
+Link: https://patch.msgid.link/E1vnYxl-00000007hol-3XiH@rmk-PC.armlinux.org.uk
+Signed-off-by: Jakub Kicinski <kuba@kernel.org>
+---
+ .../net/ethernet/stmicro/stmmac/dwmac-rk.c    | 35 +++++++++++++------
+ 1 file changed, 25 insertions(+), 10 deletions(-)
+
+diff --git a/drivers/net/ethernet/stmicro/stmmac/dwmac-rk.c b/drivers/net/ethernet/stmicro/stmmac/dwmac-rk.c
+index c56cc40683a33a..73d471844022ac 100644
+--- a/drivers/net/ethernet/stmicro/stmmac/dwmac-rk.c
++++ b/drivers/net/ethernet/stmicro/stmmac/dwmac-rk.c
+@@ -53,6 +53,8 @@ struct rk_gmac_ops {
+ 
+ 	bool gmac_grf_reg_in_php;
+ 	bool clock_grf_reg_in_php;
++	bool supports_rgmii;
++	bool supports_rmii;
+ 	bool php_grf_required;
+ 	bool regs_valid;
+ 	u32 regs[];
+@@ -86,6 +88,8 @@ struct rk_priv_data {
+ 	bool clk_enabled;
+ 	bool clock_input;
+ 	bool integrated_phy;
++	bool supports_rgmii;
++	bool supports_rmii;
+ 
+ 	struct clk_bulk_data *clks;
+ 	int num_clks;
+@@ -1415,6 +1419,9 @@ static struct rk_priv_data *rk_gmac_setup(struct platform_device *pdev,
+ 	bsp_priv->clock_grf_reg = ops->clock_grf_reg;
+ 	bsp_priv->clock = ops->clock;
+ 
++	bsp_priv->supports_rgmii = ops->supports_rgmii || !!ops->set_to_rgmii;
++	bsp_priv->supports_rmii = ops->supports_rmii || !!ops->set_to_rmii;
++
+ 	if (ops->init) {
+ 		ret = ops->init(bsp_priv);
+ 		if (ret) {
+@@ -1434,11 +1441,11 @@ static int rk_gmac_check_ops(struct rk_priv_data *bsp_priv)
+ 	case PHY_INTERFACE_MODE_RGMII_ID:
+ 	case PHY_INTERFACE_MODE_RGMII_RXID:
+ 	case PHY_INTERFACE_MODE_RGMII_TXID:
+-		if (!bsp_priv->ops->set_to_rgmii)
++		if (!bsp_priv->supports_rgmii)
+ 			return -EINVAL;
+ 		break;
+ 	case PHY_INTERFACE_MODE_RMII:
+-		if (!bsp_priv->ops->set_to_rmii)
++		if (!bsp_priv->supports_rmii)
+ 			return -EINVAL;
+ 		break;
+ 	default:
+@@ -1489,24 +1496,32 @@ static int rk_gmac_powerup(struct rk_priv_data *bsp_priv)
+ 	switch (bsp_priv->phy_iface) {
+ 	case PHY_INTERFACE_MODE_RGMII:
+ 		dev_info(dev, "init for RGMII\n");
+-		bsp_priv->ops->set_to_rgmii(bsp_priv, bsp_priv->tx_delay,
+-					    bsp_priv->rx_delay);
++		if (bsp_priv->ops->set_to_rgmii)
++			bsp_priv->ops->set_to_rgmii(bsp_priv,
++						    bsp_priv->tx_delay,
++						    bsp_priv->rx_delay);
+ 		break;
+ 	case PHY_INTERFACE_MODE_RGMII_ID:
+ 		dev_info(dev, "init for RGMII_ID\n");
+-		bsp_priv->ops->set_to_rgmii(bsp_priv, 0, 0);
++		if (bsp_priv->ops->set_to_rgmii)
++			bsp_priv->ops->set_to_rgmii(bsp_priv, 0, 0);
+ 		break;
+ 	case PHY_INTERFACE_MODE_RGMII_RXID:
+ 		dev_info(dev, "init for RGMII_RXID\n");
+-		bsp_priv->ops->set_to_rgmii(bsp_priv, bsp_priv->tx_delay, 0);
++		if (bsp_priv->ops->set_to_rgmii)
++			bsp_priv->ops->set_to_rgmii(bsp_priv,
++						    bsp_priv->tx_delay, 0);
+ 		break;
+ 	case PHY_INTERFACE_MODE_RGMII_TXID:
+ 		dev_info(dev, "init for RGMII_TXID\n");
+-		bsp_priv->ops->set_to_rgmii(bsp_priv, 0, bsp_priv->rx_delay);
++		if (bsp_priv->ops->set_to_rgmii)
++			bsp_priv->ops->set_to_rgmii(bsp_priv,
++						    0, bsp_priv->rx_delay);
+ 		break;
+ 	case PHY_INTERFACE_MODE_RMII:
+ 		dev_info(dev, "init for RMII\n");
+-		bsp_priv->ops->set_to_rmii(bsp_priv);
++		if (bsp_priv->ops->set_to_rmii)
++			bsp_priv->ops->set_to_rmii(bsp_priv);
+ 		break;
+ 	default:
+ 		dev_err(dev, "NO interface defined!\n");
+@@ -1542,10 +1557,10 @@ static void rk_get_interfaces(struct stmmac_priv *priv, void *bsp_priv,
+ {
+ 	struct rk_priv_data *rk = bsp_priv;
+ 
+-	if (rk->ops->set_to_rgmii)
++	if (rk->supports_rgmii)
+ 		phy_interface_set_rgmii(interfaces);
+ 
+-	if (rk->ops->set_to_rmii)
++	if (rk->supports_rmii)
+ 		__set_bit(PHY_INTERFACE_MODE_RMII, interfaces);
+ }
+ 

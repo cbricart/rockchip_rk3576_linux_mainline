@@ -1,0 +1,47 @@
+The Rockchip GMAC binding needs to describe the PCS reference used by
+the SGMII support added later in this series. The property will be
+parsed by rk_pcs_init(), and a missing phandle fails the probe. Add it
+and require it when phy-mode is "sgmii" on rockchip,rk3568-gmac, the
+only SoC in this binding that has SGMII support.
+
+Signed-off-by: Coia Prant <coiaprant@gmail.com>
+---
+ .../bindings/net/rockchip-dwmac.yaml           | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)
+
+diff --git a/Documentation/devicetree/bindings/net/rockchip-dwmac.yaml b/Documentation/devicetree/bindings/net/rockchip-dwmac.yaml
+index 80c252845349c..bb7540e838033 100644
+--- a/Documentation/devicetree/bindings/net/rockchip-dwmac.yaml
++++ b/Documentation/devicetree/bindings/net/rockchip-dwmac.yaml
+@@ -120,6 +120,12 @@ properties:
+     maximum: 0x7F
+     default: 0x10
+ 
++  pcs-handle:
++    description:
++      Specifies a reference to a node representing the PCS device
++      connected to this GMAC. Required when phy-mode is "sgmii".
++    maxItems: 1
++
+   phy-supply:
+     description: PHY regulator
+ 
+@@ -159,6 +165,18 @@ allOf:
+         clocks:
+           minItems: 5
+ 
++  - if:
++      properties:
++        compatible:
++          contains:
++            const: rockchip,rk3568-gmac
++        phy-mode:
++          contains:
++            const: sgmii
++    then:
++      required:
++        - pcs-handle
++
+ unevaluatedProperties: false
+ 
+ examples:

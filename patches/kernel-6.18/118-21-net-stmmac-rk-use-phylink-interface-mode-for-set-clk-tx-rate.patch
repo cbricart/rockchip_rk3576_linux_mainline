@@ -1,0 +1,31 @@
+From f15bcd071913dfa754cabb85e9fff4eded4e35b2 Mon Sep 17 00:00:00 2001
+From: "Russell King (Oracle)" <rmk+kernel@armlinux.org.uk>
+Date: Wed, 19 Nov 2025 11:29:16 +0000
+Subject: [PATCH] net: stmmac: rk: use phylink's interface mode for
+ set_clk_tx_rate()
+
+rk_set_clk_tx_rate() is passed the interface mode from phylink which
+will be the same as bsp_priv->phy_iface. Use the passed-in interface
+mode rather than bsp_priv->phy_iface.
+
+Signed-off-by: Russell King (Oracle) <rmk+kernel@armlinux.org.uk>
+Link: https://patch.msgid.link/E1vLgNA-0000000FMjN-0DSS@rmk-PC.armlinux.org.uk
+Signed-off-by: Jakub Kicinski <kuba@kernel.org>
+---
+ drivers/net/ethernet/stmicro/stmmac/dwmac-rk.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/drivers/net/ethernet/stmicro/stmmac/dwmac-rk.c b/drivers/net/ethernet/stmicro/stmmac/dwmac-rk.c
+index 6bfe82d7001ae9..0a95f54e725ef6 100644
+--- a/drivers/net/ethernet/stmicro/stmmac/dwmac-rk.c
++++ b/drivers/net/ethernet/stmicro/stmmac/dwmac-rk.c
+@@ -1735,8 +1735,7 @@ static int rk_set_clk_tx_rate(void *bsp_priv_, struct clk *clk_tx_i,
+ 	struct rk_priv_data *bsp_priv = bsp_priv_;
+ 
+ 	if (bsp_priv->ops->set_speed)
+-		return bsp_priv->ops->set_speed(bsp_priv, bsp_priv->phy_iface,
+-						speed);
++		return bsp_priv->ops->set_speed(bsp_priv, interface, speed);
+ 
+ 	return -EINVAL;
+ }

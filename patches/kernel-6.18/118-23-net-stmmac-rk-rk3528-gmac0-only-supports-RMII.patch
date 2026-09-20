@@ -1,0 +1,43 @@
+From d7d92037cbd82ac6581ef9c97f14d2432f921fba Mon Sep 17 00:00:00 2001
+From: "Russell King (Oracle)" <rmk+kernel@armlinux.org.uk>
+Date: Wed, 4 Feb 2026 09:14:33 +0000
+Subject: [PATCH] net: stmmac: rk: rk3528: gmac0 only supports RMII
+
+RK3528 gmac0 dtsi contains:
+
+                gmac0: ethernet@ffbd0000 {
+                        phy-handle = <&rmii0_phy>;
+                        phy-mode = "rmii";
+
+                        mdio0: mdio {
+                                rmii0_phy: ethernet-phy@2 {
+                                        phy-is-integrated;
+                                };
+                        };
+                };
+
+This follows the same pattern as rk3328, where this gmac instance
+only supports RMII. Disable RGMII in phylink's supported_interfaces
+mask for this gmac instance.
+
+Signed-off-by: Russell King (Oracle) <rmk+kernel@armlinux.org.uk>
+Reviewed-by: Maxime Chevallier <maxime.chevallier@bootlin.com>
+Reviewed-by: Heiko Stuebner <heiko@sntech.de>
+Link: https://patch.msgid.link/E1vnYy1-00000007hp3-0hKm@rmk-PC.armlinux.org.uk
+Signed-off-by: Jakub Kicinski <kuba@kernel.org>
+---
+ drivers/net/ethernet/stmicro/stmmac/dwmac-rk.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/drivers/net/ethernet/stmicro/stmmac/dwmac-rk.c b/drivers/net/ethernet/stmicro/stmmac/dwmac-rk.c
+index 8dd2122fd9b1e1..4099cbc5d0de0b 100644
+--- a/drivers/net/ethernet/stmicro/stmmac/dwmac-rk.c
++++ b/drivers/net/ethernet/stmicro/stmmac/dwmac-rk.c
+@@ -728,6 +728,7 @@ static int rk3528_init(struct rk_priv_data *bsp_priv)
+ 	case 0:
+ 		bsp_priv->clock_grf_reg = RK3528_VO_GRF_GMAC_CON;
+ 		bsp_priv->clock.rmii_clk_sel_mask = BIT_U16(3);
++		bsp_priv->supports_rgmii = false;
+ 		return 0;
+ 
+ 	case 1:

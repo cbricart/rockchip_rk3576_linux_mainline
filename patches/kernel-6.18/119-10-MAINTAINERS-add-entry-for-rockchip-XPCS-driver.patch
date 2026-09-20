@@ -1,0 +1,31 @@
+Add a MAINTAINERS entry for the Rockchip RK3568 XPCS platform driver
+and its device tree binding.
+
+Include the relevant mailing lists (netdev and linux-rockchip) so that
+future patches are properly distributed.
+
+Signed-off-by: Coia Prant <coiaprant@gmail.com>
+---
+ MAINTAINERS | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+diff --git a/MAINTAINERS b/MAINTAINERS
+index 3b2eb2a7a89a8..f53a519da6298 100644
+--- a/MAINTAINERS
++++ b/MAINTAINERS
+@@ -23739,6 +23739,15 @@ S:	Maintained
+ F:	Documentation/devicetree/bindings/sound/rockchip,rk3576-sai.yaml
+ F:	sound/soc/rockchip/rockchip_sai.*
+ 
++ROCKCHIP XPCS DRIVER
++M:	Coia Prant <coiaprant@gmail.com>
++L:	netdev@vger.kernel.org
++L:	linux-rockchip@lists.infradead.org
++S:	Maintained
++F:	Documentation/devicetree/bindings/net/pcs/rockchip,rk3568-xpcs.yaml
++F:	drivers/net/pcs/pcs-xpcs-rk.c
++F:	include/linux/pcs/pcs-xpcs-rk.h
++
+ ROCKER DRIVER
+ M:	Jiri Pirko <jiri@resnulli.us>
+ L:	netdev@vger.kernel.org

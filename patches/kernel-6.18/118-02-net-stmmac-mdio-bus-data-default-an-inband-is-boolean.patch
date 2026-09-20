@@ -1,0 +1,34 @@
+From 3cd963fa915c494a6d0da0287bd10cb6f2204f9e Mon Sep 17 00:00:00 2001
+From: "Russell King (Oracle)" <rmk+kernel@armlinux.org.uk>
+Date: Thu, 5 Mar 2026 10:42:57 +0000
+Subject: [PATCH] net: stmmac: mdio_bus_data->default_an_inband is boolean
+
+default_an_inband is declared as an unsigned int, but is set to true/
+false and is assigned to phylink_config's member of the same name
+which is a bool. Declare this also as a bool for consistency.
+
+Signed-off-by: Russell King (Oracle) <rmk+kernel@armlinux.org.uk>
+Reviewed-by: Maxime Chevallier <maxime.chevallier@bootlin.com>
+Tested-by: Maxime Chevallier <maxime.chevallier@bootlin.com>
+Link: https://patch.msgid.link/E1vy6AT-0000000BtxD-2qm7@rmk-PC.armlinux.org.uk
+Signed-off-by: Jakub Kicinski <kuba@kernel.org>
+---
+ include/linux/stmmac.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/include/linux/stmmac.h b/include/linux/stmmac.h
+index 2fc169c7117e7b..678d03d6d3bd81 100644
+--- a/include/linux/stmmac.h
++++ b/include/linux/stmmac.h
+@@ -86,10 +86,10 @@ struct stmmac_priv;
+ struct stmmac_mdio_bus_data {
+ 	unsigned int phy_mask;
+ 	unsigned int pcs_mask;
+-	unsigned int default_an_inband;
+ 	int *irqs;
+ 	int probed_phy_irq;
+ 	bool needs_reset;
++	bool default_an_inband;
+ };
+ 
+ struct stmmac_dma_cfg {

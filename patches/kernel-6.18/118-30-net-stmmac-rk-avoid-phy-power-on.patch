@@ -1,0 +1,59 @@
+From a0094edaf4920689dd6c26cb14a929ae80e290a0 Mon Sep 17 00:00:00 2001
+From: "Russell King (Oracle)" <rmk+kernel@armlinux.org.uk>
+Date: Mon, 26 Jan 2026 11:45:02 +0000
+Subject: [PATCH] net: stmmac: rk: avoid phy_power_on()
+
+In https://lore.kernel.org/netdev/aDne1Ybuvbk0AwG0@shell.armlinux.org.uk/
+I requested that a follow-up patch to change the name of dwmac-rk's
+phy_power_on() function, which clashes with the drivers/phy function
+of the same name. This can cause confusion when grepping for this
+function name, or when reviewing code. Thankfully, stmmac doesn't make
+use of drivers/phy which saves this from compile errors.
+
+However, as is the usual case when a request is made as part of a
+review, if the review leads to successful application of the patch the
+author doesn't bother following up with any such requests, and so the
+problem falls back onto the reviewer to address... so here is the
+solution.
+
+Rename dwmac-rk's function to rk_phy_power_ctl(), as the function both
+powers up and down.
+
+Signed-off-by: Russell King (Oracle) <rmk+kernel@armlinux.org.uk>
+Link: https://patch.msgid.link/E1vkL1i-00000005usD-3lhz@rmk-PC.armlinux.org.uk
+Signed-off-by: Jakub Kicinski <kuba@kernel.org>
+---
+ drivers/net/ethernet/stmicro/stmmac/dwmac-rk.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/drivers/net/ethernet/stmicro/stmmac/dwmac-rk.c b/drivers/net/ethernet/stmicro/stmmac/dwmac-rk.c
+index 0a95f54e725ef6..de420997e21f88 100644
+--- a/drivers/net/ethernet/stmicro/stmmac/dwmac-rk.c
++++ b/drivers/net/ethernet/stmicro/stmmac/dwmac-rk.c
+@@ -1498,7 +1498,7 @@ static int gmac_clk_enable(struct rk_priv_data *bsp_priv, bool enable)
+ 	return 0;
+ }
+ 
+-static int phy_power_on(struct rk_priv_data *bsp_priv, bool enable)
++static int rk_phy_power_ctl(struct rk_priv_data *bsp_priv, bool enable)
+ {
+ 	struct regulator *ldo = bsp_priv->regulator;
+ 	struct device *dev = bsp_priv->dev;
+@@ -1692,7 +1692,7 @@ static int rk_gmac_powerup(struct rk_priv_data *bsp_priv)
+ 		dev_err(dev, "NO interface defined!\n");
+ 	}
+ 
+-	ret = phy_power_on(bsp_priv, true);
++	ret = rk_phy_power_ctl(bsp_priv, true);
+ 	if (ret) {
+ 		gmac_clk_enable(bsp_priv, false);
+ 		return ret;
+@@ -1713,7 +1713,7 @@ static void rk_gmac_powerdown(struct rk_priv_data *gmac)
+ 
+ 	pm_runtime_put_sync(gmac->dev);
+ 
+-	phy_power_on(gmac, false);
++	rk_phy_power_ctl(gmac, false);
+ 	gmac_clk_enable(gmac, false);
+ }
+ 

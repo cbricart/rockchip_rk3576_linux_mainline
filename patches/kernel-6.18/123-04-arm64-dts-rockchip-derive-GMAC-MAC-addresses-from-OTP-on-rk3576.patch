@@ -1,0 +1,54 @@
+Rockchip SoCs derive stable MAC addresses from the CPU ID in OTP memory,
+which a bootloader would normally process and patch the live device tree
+based on it. This depends on the particular bootloader implementation
+though, and the derivation itself is not described in the device tree.
+
+Add explicit nvmem layout for the CPU ID derived MAC addresses on RK3576,
+so that any OS can implement the same derivation without depending on the
+bootloader used.
+
+Boards which store a MAC address of their own can override the reference
+with a cell of their choosing.
+
+Signed-off-by: Alexey Charkov <alchark@flipper.net>
+---
+ arch/arm64/boot/dts/rockchip/rk3576.dtsi | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/rockchip/rk3576.dtsi b/arch/arm64/boot/dts/rockchip/rk3576.dtsi
+index d418bfc04097..aa6d867b5a30 100644
+--- a/arch/arm64/boot/dts/rockchip/rk3576.dtsi
++++ b/arch/arm64/boot/dts/rockchip/rk3576.dtsi
+@@ -1845,6 +1845,8 @@ gmac0: ethernet@2a220000 {
+ 			interrupts = <GIC_SPI 293 IRQ_TYPE_LEVEL_HIGH>,
+ 				     <GIC_SPI 298 IRQ_TYPE_LEVEL_HIGH>;
+ 			interrupt-names = "macirq", "eth_wake_irq";
++			nvmem-cells = <&otp_mac_address 0>;
++			nvmem-cell-names = "mac-address";
+ 			power-domains = <&power RK3576_PD_SDGMAC>;
+ 			resets = <&cru SRST_A_GMAC0>;
+ 			reset-names = "stmmaceth";
+@@ -1893,6 +1895,8 @@ gmac1: ethernet@2a230000 {
+ 			interrupts = <GIC_SPI 301 IRQ_TYPE_LEVEL_HIGH>,
+ 				     <GIC_SPI 306 IRQ_TYPE_LEVEL_HIGH>;
+ 			interrupt-names = "macirq", "eth_wake_irq";
++			nvmem-cells = <&otp_mac_address 1>;
++			nvmem-cell-names = "mac-address";
+ 			power-domains = <&power RK3576_PD_SDGMAC>;
+ 			resets = <&cru SRST_A_GMAC1>;
+ 			reset-names = "stmmaceth";
+@@ -2131,6 +2135,14 @@ soc_tsadc_trim: soc-tsadc-trim@64 {
+ 				reg = <0x64 0x2>;
+ 				bits = <0 10>;
+ 			};
++
++			nvmem-layout {
++				compatible = "rockchip,rk3576-otp-cpuid";
++
++				otp_mac_address: mac-address {
++					#nvmem-cell-cells = <1>;
++				};
++			};
+ 		};
+ 
+ 		sai0: sai@2a600000 {

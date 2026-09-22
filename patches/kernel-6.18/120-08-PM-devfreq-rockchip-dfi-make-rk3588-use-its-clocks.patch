@@ -1,0 +1,88 @@
+So far, RK3588 doesn't have the pclks for DDRMON used in the driver, as
+they weren't modelled before.
+
+However, they are now correctly modelled, so the driver should use them
+when possible.
+
+Instead of unconditionally getting them for this SoC, add a new variant
+member that specifies whether the driver should let missing clocks
+slide. This is needed because we want old device trees to keep
+functioning, as otherwise we'd be introducing a breaking change for
+literally no functional difference here.
+
+Fill out a clock name list for this variant as well, and hand it to it.
+
+Signed-off-by: Nicolas Frattaroli <nicolas.frattaroli@collabora.com>
+Signed-off-by: Sebastian Reichel <sebastian.reichel@collabora.com>
+---
+ drivers/devfreq/event/rockchip-dfi.c | 29 +++++++++++++++++++++++++++--
+ 1 file changed, 27 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/devfreq/event/rockchip-dfi.c b/drivers/devfreq/event/rockchip-dfi.c
+index b61ec500eaed..380361a231a2 100644
+--- a/drivers/devfreq/event/rockchip-dfi.c
++++ b/drivers/devfreq/event/rockchip-dfi.c
+@@ -117,6 +117,18 @@ struct rockchip_dfi {
+ 	const struct rockchip_dfi_variant *variant;
+ };
+ 
++/**
++ * struct rockchip_dfi_variant
++ * @init: pointer to the variant-specific initialisation function
++ * @stride: address offset between the DDRMON per-channel instances
++ * @ctrl_single: whether only one DDRMON instance monitors multiple channels
++ * @max_channels: maximum number of memory channels for this SoC
++ * @clk_names: pointer to a constant array of constant clock name strings
++ * @num_clk: the number of elements in the @clk_names array
++ * @clocks_optional: whether not finding the clocks is non-fatal. Set if the
++ *                   DT binding for this variant didn't require clocks in the
++ *                   past, so that the driver remains compatible with old DTs.
++ */
+ struct rockchip_dfi_variant {
+ 	int (*init)(struct rockchip_dfi *dfi);
+ 	int stride;
+@@ -124,6 +136,7 @@ struct rockchip_dfi_variant {
+ 	unsigned int max_channels;
+ 	const char * const *clk_names;
+ 	unsigned int num_clks;
++	bool clocks_optional;
+ };
+ 
+ static int rockchip_dfi_ddrtype_to_ctrl(struct rockchip_dfi *dfi, u32 *ctrl)
+@@ -804,6 +817,11 @@ static const char * const rk3399_clk_names[] = {
+ 	"pclk_ddr_mon",
+ };
+ 
++static const char * const rk3588_clk_names[] = {
++	"pclk_ddr_mon_ch0", "pclk_ddr_mon_ch1", "pclk_ddr_mon_ch2",
++	"pclk_ddr_mon_ch3",
++};
++
+ static const struct rockchip_dfi_variant rk3399_variant = {
+ 	.init = rk3399_dfi_init,
+ 	.stride = 0x14,
+@@ -824,6 +842,9 @@ static const struct rockchip_dfi_variant rk3588_variant = {
+ 	.init = rk3588_dfi_init,
+ 	.stride = 0x4000,
+ 	.max_channels = 4,
++	.clk_names = rk3588_clk_names,
++	.num_clks = ARRAY_SIZE(rk3588_clk_names),
++	.clocks_optional = true,
+ };
+ 
+ static const struct of_device_id rockchip_dfi_id_match[] = {
+@@ -883,8 +904,12 @@ static int rockchip_dfi_probe(struct platform_device *pdev)
+ 		for (i = 0; i < dfi->variant->num_clks; i++)
+ 			dfi->clocks[i].id = dfi->variant->clk_names[i];
+ 
+-		ret = devm_clk_bulk_get(dev, dfi->variant->num_clks,
+-					dfi->clocks);
++		if (dfi->variant->clocks_optional)
++			ret = devm_clk_bulk_get_optional(dev, dfi->variant->num_clks,
++							 dfi->clocks);
++		else
++			ret = devm_clk_bulk_get(dev, dfi->variant->num_clks,
++						dfi->clocks);
+ 		if (ret)
+ 			return dev_err_probe(dev, ret, "failed to get clocks\n");
+ 	}

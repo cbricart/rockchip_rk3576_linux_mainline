@@ -1,0 +1,31 @@
+RK3576 DFI has one pclk for each channel's monitor. However, mainline's
+clock tree does not model this second DDRMON PCLK gate, and got away
+with it so far because they both default to ungated and there is no
+upstream RK3576 DFI driver.
+
+Add a clock gate branch for it, and remove the CLK_IGNORE_UNUSED flag
+from its sibling. In opposite to RK3588 we can add a mandatory
+requirement for a clock reference to the RK3576 DFI DT binding.
+
+Signed-off-by: Nicolas Frattaroli <nicolas.frattaroli@collabora.com>
+Signed-off-by: Sebastian Reichel <sebastian.reichel@collabora.com>
+---
+ drivers/clk/rockchip/clk-rk3576.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/clk/rockchip/clk-rk3576.c b/drivers/clk/rockchip/clk-rk3576.c
+index 2cdd667f4004..0c94e9db81c1 100644
+--- a/drivers/clk/rockchip/clk-rk3576.c
++++ b/drivers/clk/rockchip/clk-rk3576.c
+@@ -883,8 +883,10 @@ static struct rockchip_clk_branch rk3576_clk_branches[] __initdata = {
+ 	COMPOSITE(PCLK_DDR_ROOT, "pclk_ddr_root", gpll_cpll_24m_p, CLK_IS_CRITICAL,
+ 			RK3576_CLKSEL_CON(76), 5, 2, MFLAGS, 0, 5, DFLAGS,
+ 			RK3576_CLKGATE_CON(21), 0, GFLAGS),
+-	GATE(PCLK_DDR_MON_CH0, "pclk_ddr_mon_ch0", "pclk_ddr_root", CLK_IGNORE_UNUSED,
++	GATE(PCLK_DDR_MON_CH0, "pclk_ddr_mon_ch0", "pclk_ddr_root", 0,
+ 			RK3576_CLKGATE_CON(21), 1, GFLAGS),
++	GATE(PCLK_DDR_MON_CH1, "pclk_ddr_mon_ch1", "pclk_ddr_root", 0,
++			RK3576_CLKGATE_CON(21), 14, GFLAGS),
+ 	COMPOSITE(HCLK_DDR_ROOT, "hclk_ddr_root", gpll_cpll_p, CLK_IGNORE_UNUSED,
+ 			RK3576_CLKSEL_CON(77), 5, 1, MFLAGS, 0, 5, DFLAGS,
+ 			RK3576_CLKGATE_CON(22), 11, GFLAGS),

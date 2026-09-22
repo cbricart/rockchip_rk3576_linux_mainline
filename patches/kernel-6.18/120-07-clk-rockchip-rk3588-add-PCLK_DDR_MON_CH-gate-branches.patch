@@ -1,0 +1,38 @@
+From: Nicolas Frattaroli <nicolas.frattaroli@collabora.com>
+
+On the Rockchip RK3588, each memory channel has some bandwidth
+monitoring silicon (hence the "DDR_MON"), which is driven by a clock
+gated by PCLK_DDR_MON_CH0/1/2/3.
+
+These clock branches were left out of the mainline clock tree until now.
+
+Add them, with the proper CRU reg bits, and the proper parent.  They are
+given the "CLK_IGNORE_UNUSED" flag, so that older device trees with
+newer kernels don't turn off the clocks because they're seen as not in
+use.
+
+Signed-off-by: Nicolas Frattaroli <nicolas.frattaroli@collabora.com>
+Signed-off-by: Sebastian Reichel <sebastian.reichel@collabora.com>
+---
+ drivers/clk/rockchip/clk-rk3588.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/drivers/clk/rockchip/clk-rk3588.c b/drivers/clk/rockchip/clk-rk3588.c
+index 24baa0ef9bf3..0485faf27163 100644
+--- a/drivers/clk/rockchip/clk-rk3588.c
++++ b/drivers/clk/rockchip/clk-rk3588.c
+@@ -1349,6 +1349,14 @@ static struct rockchip_clk_branch rk3588_early_clk_branches[] __initdata = {
+ 	COMPOSITE(CLK_DDR_CM0_RTC, "clk_ddr_cm0_rtc", mux_24m_32k_p, CLK_IS_CRITICAL,
+ 			RK3588_CLKSEL_CON(166), 5, 1, MFLAGS, 0, 5, DFLAGS,
+ 			RK3588_CLKGATE_CON(70), 4, GFLAGS),
++	GATE(PCLK_DDR_MON_CH0, "pclk_ddr_mon_ch0", "pclk_center_root", CLK_IGNORE_UNUSED,
++			RK3588_CLKGATE_CON(20), 1, GFLAGS),
++	GATE(PCLK_DDR_MON_CH1, "pclk_ddr_mon_ch1", "pclk_center_root", CLK_IGNORE_UNUSED,
++			RK3588_CLKGATE_CON(20), 14, GFLAGS),
++	GATE(PCLK_DDR_MON_CH2, "pclk_ddr_mon_ch2", "pclk_center_root", CLK_IGNORE_UNUSED,
++			RK3588_CLKGATE_CON(23), 1, GFLAGS),
++	GATE(PCLK_DDR_MON_CH3, "pclk_ddr_mon_ch3", "pclk_center_root", CLK_IGNORE_UNUSED,
++			RK3588_CLKGATE_CON(23), 14, GFLAGS),
+ 	GATE(PCLK_WDT, "pclk_wdt", "pclk_center_root", 0,
+ 			RK3588_CLKGATE_CON(70), 7, GFLAGS),
+ 	GATE(PCLK_TIMER, "pclk_timer", "pclk_center_root", 0,

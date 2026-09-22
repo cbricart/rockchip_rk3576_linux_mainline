@@ -1,0 +1,24 @@
+When the RK3576 CRU DT binding got upstreamed, some DFI clocks
+were missed. Add identifiers for them.
+
+Signed-off-by: Nicolas Frattaroli <nicolas.frattaroli@collabora.com>
+Signed-off-by: Sebastian Reichel <sebastian.reichel@collabora.com>
+---
+ include/dt-bindings/clock/rockchip,rk3576-cru.h | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/include/dt-bindings/clock/rockchip,rk3576-cru.h b/include/dt-bindings/clock/rockchip,rk3576-cru.h
+index ded5ce42e62a..c5b74f2d8926 100644
+--- a/include/dt-bindings/clock/rockchip,rk3576-cru.h
++++ b/include/dt-bindings/clock/rockchip,rk3576-cru.h
+@@ -604,4 +604,10 @@
+ #define CLK_FSPI0_TO_IO			576
+ #define CLK_FSPI1_TO_IO			577
+ 
++/* Clocks that were missed initially */
++#define PCLK_DDR_MON_CH1		578
++#define TMCLK_DDR_MON_CH1		579
++#define CLK_DFI_CH0			580
++#define CLK_DFI_CH1			581
++
+ #endif

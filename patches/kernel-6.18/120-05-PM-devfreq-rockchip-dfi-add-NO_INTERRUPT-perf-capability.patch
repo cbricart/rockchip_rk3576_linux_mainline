@@ -1,0 +1,35 @@
+The perf subsystem's PERF_PMU_CAP_NO_INTERRUPT is a bit of a
+misnomer.[1] Instead of meaning that the PMU has no interrupt, it
+actually means that the PMU does support sampling. On CPU PMUs, this is
+equivalent to not having an interrupt, but for uncore PMUs like the
+rockchip-dfi PMU is, no meaningful sample data could ever be generated
+regardless of whether or not there is an interrupt, as it is not a CPU.
+
+Since rockchip-dfi doesn't seem to make use of the interrupt the DT
+provides it with anyway, this was probably never a confusion that
+existed in this case; the capability flag was likely just forgotten.
+
+Add PERF_PMU_CAP_NO_INTERRUPT to the set flags for the pmu struct's
+capabilities member, so that the perf core knows about this limitation.
+
+Fixes: 4d586b5724d3 ("PM / devfreq: rockchip-dfi: Add perf support")
+Link: https://lore.kernel.org/all/20250619140442.GH1613376@noisy.programming.kicks-ass.net/ [1]
+Signed-off-by: Nicolas Frattaroli <nicolas.frattaroli@collabora.com>
+Signed-off-by: Sebastian Reichel <sebastian.reichel@collabora.com>
+---
+ drivers/devfreq/event/rockchip-dfi.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/devfreq/event/rockchip-dfi.c b/drivers/devfreq/event/rockchip-dfi.c
+index 5339616f7ca6..dd9edfd6a674 100644
+--- a/drivers/devfreq/event/rockchip-dfi.c
++++ b/drivers/devfreq/event/rockchip-dfi.c
+@@ -646,7 +646,7 @@ static int rockchip_ddr_perf_init(struct rockchip_dfi *dfi)
+ 	seqlock_init(&dfi->count_seqlock);
+ 
+ 	pmu->module = THIS_MODULE;
+-	pmu->capabilities = PERF_PMU_CAP_NO_EXCLUDE;
++	pmu->capabilities = PERF_PMU_CAP_NO_EXCLUDE | PERF_PMU_CAP_NO_INTERRUPT;
+ 	pmu->task_ctx_nr = perf_invalid_context;
+ 	pmu->attr_groups = attr_groups;
+ 	pmu->event_init  = rockchip_ddr_perf_event_init;
